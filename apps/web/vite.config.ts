@@ -8,6 +8,12 @@ export default defineConfig({
     fs: {
       allow: [path.resolve(__dirname, "../..")],
     },
+    proxy: {
+      "/api": {
+        target: "http://127.0.0.1:8787",
+        changeOrigin: true,
+      },
+    },
   },
   resolve: {
     alias: {

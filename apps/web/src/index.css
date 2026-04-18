@@ -246,3 +246,13 @@ small.hint {
   color: var(--muted);
   font-size: 0.75rem;
 }
+
+.inline-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.82em;
+  padding: 0.12em 0.35em;
+  border-radius: 6px;
+  background: #0a0a0f;
+  border: 1px solid var(--border);
+  color: var(--text);
+}

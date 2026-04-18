@@ -202,20 +202,17 @@ Define a **versioned JSON schema** early. Everything else hangs off it.
 
 ## 11. Immediate next steps (this repo)
 
-**Shipped in repo (local-first platform):**
+**Shipped (full local / Docker platform):**
 
-- **Wizard:** `apps/web` — `npm run dev` — full intake, JSON review, download `*.spec.json`.
-- **Validate:** `npm run validate:spec` — `scripts/validate-spec.mjs`.
-- **Codegen:** `npm run codegen -- <spec.json> <empty-out-dir>` — `scripts/codegen.mjs` (tabs only in v1).
-- **Quality:** `npm run check:artifact -- <generated-project-dir>` — runs `tsc --noEmit`.
-- **Phases doc:** `docs/EXECUTION_PHASES.md` tracks implementation vs roadmap.
+- **Wizard:** `apps/web` — Vite UI; `npm run dev` or `npm run dev:platform` with API.
+- **API:** `apps/api` — `POST /api/generate` returns **Expo ZIP** (includes `npm install` output).
+- **Validate / codegen / quality:** `validate-spec.mjs`, `codegen.mjs`, `check-artifact.mjs` (tabs-only v1).
+- **Optional AI:** `scripts/llm-enrich-spec.mjs` — polishes copy fields with OpenAI; still schema-valid.
+- **Deploy:** `Dockerfile` (static UI + API); **GitHub Actions** CI — validate, build web, codegen smoke test.
+- **Phase 5** (live in-browser RN preview): still deferred — use Expo Go or simulators.
 
-**Next (product / infra, not required for local use):**
-
-- Host `apps/web` static build; optional API for zip storage and Git push (Phase 4 in strategic sense).
-- Optional LLM pass using `docs/prompts/*` for richer UI than deterministic chips.
-- Phase **5** visual live preview (deferred).
+**Optional later:** Git OAuth from the product, hosted zip CDN, multi-stack codegen (`stack` / `tabs-stack`), App Store pipeline.
 
 ---
 
-*Document version: 0.4 — REACTIVE*
+*Document version: 0.5 — REACTIVE*

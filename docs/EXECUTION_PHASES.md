@@ -1,24 +1,23 @@
 # REACTIVE — execution phases (build plan)
 
-This is the **implementation checklist** for the platform (repo work). It maps to `PLAN.md` §8 and extends it with concrete deliverables.
-
 | Phase | Name | Status | Deliverables |
 |-------|------|--------|--------------|
-| **0** | Spec contract | Done | JSON Schema, examples, CLI validator, prompts, Expo template skeleton |
-| **1** | Wizard web app | Done | `apps/web` — intake steps, review, download JSON, Ajv validate |
-| **2** | Codegen v1 | Done | `scripts/codegen.mjs` — copy template, theme + tabs + screens, `generatedSpec.ts`, optional `npm install` |
-| **3** | Quality gate | Done | `npm run check:artifact -- <dir>` — `tsc --noEmit` on generated Expo project |
-| **4** | Integrations stub | Done | Supabase stub + `.env.example` when `backend.mode` is `supabase-ready` (or REST placeholder) |
-| **5** | Visual / preview | Deferred | Live RN preview in browser is out of scope; optional later: screenshot → spec |
+| **0** | Spec contract | Done | JSON Schema, examples, CLI validator, prompts, Expo template |
+| **1** | Wizard web app | Done | `apps/web` — intake, review, JSON + **ZIP via API** |
+| **2** | Codegen v1 | Done | `scripts/codegen.mjs` — tabs, theme, `generatedSpec.ts` |
+| **3** | Quality gate | Done | `npm run check:artifact` |
+| **4** | Integrations stub | Done | Supabase stub + `.env.example` when spec requests it |
+| **5** | Visual live preview | Deferred | True RN preview needs device/simulator or hosted build farm |
 
-**Not in this repo (you deploy separately):** hosted artifact storage, OAuth Git push, paid API workers, App Store submission bots.
+**Also shipped:** `apps/api` (ZIP endpoint), `npm run dev:platform`, Docker, GitHub Actions CI, optional `scripts/llm-enrich-spec.mjs`.
 
-Run the platform locally:
+**Still not in-repo (optional product layer):** OAuth Git push, cloud artifact storage, App Store automation, in-browser RN renderer.
 
-1. `npm install` (root)  
-2. `npm run dev --workspace web` — wizard UI  
-3. `npm run codegen -- <spec.json> <outDir>` — Expo project  
+Run locally:
+
+1. `npm run dev:platform`  
+2. Finish wizard → **Download Expo project (ZIP)**  
 
 ---
 
-*Keeps `PLAN.md` strategic; this file tracks shipped vs pending code.*
+*Strategic detail lives in `PLAN.md`; this file tracks what the repo actually contains.*

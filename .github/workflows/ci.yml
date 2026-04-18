@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Validate example specs
+        run: npm run validate:spec:examples
+      - name: Build web
+        run: npm run build -w web
+      - name: Codegen + typecheck (habit tracker)
+        run: |
+          node scripts/codegen.mjs docs/spec-schema/examples/habit-tracker.spec.json /tmp/reactive-out --skip-install
+          cd /tmp/reactive-out && npm install && npx tsc --noEmit

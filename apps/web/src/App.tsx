@@ -35,10 +35,14 @@ const BLOCKS: Block[] = [
   "custom",
 ];
 
+const apiBase = import.meta.env.VITE_API_BASE ?? "";
+
 export default function App() {
   const [step, setStep] = useState(0);
   const [spec, setSpec] = useState<AppSpec>(() => createDefaultSpec());
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [zipLoading, setZipLoading] = useState(false);
+  const [zipMessage, setZipMessage] = useState<string | null>(null);
 
   const v = useMemo(() => validateSpec(spec), [spec]);
 
@@ -64,6 +68,49 @@ export default function App() {
     URL.revokeObjectURL(a.href);
   }
 
+  async function downloadExpoZip() {
+    const finalSpec = stampTimes(spec);
+    const res = validateSpec(finalSpec);
+    if (!res.ok) {
+      setValidationError(res.message);
+      setZipMessage(null);
+      return;
+    }
+    setZipLoading(true);
+    setZipMessage(null);
+    setValidationError(null);
+    try {
+      const url = `${apiBase}/api/generate`;
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(finalSpec),
+      });
+      if (!response.ok) {
+        const errJson = await response.json().catch(() => ({}));
+        const msg =
+          typeof errJson.error === "string"
+            ? errJson.error
+            : typeof errJson.message === "string"
+              ? errJson.message
+              : (await response.text()) || response.statusText;
+        throw new Error(msg);
+      }
+      const blob = await response.blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `${finalSpec.meta.slug}-expo.zip`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      setZipMessage("ZIP downloaded — unzip, then run: npm install && npx expo start");
+    } catch (e) {
+      setZipMessage(null);
+      setValidationError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setZipLoading(false);
+    }
+  }
+
   return (
     <div className="app-shell">
       <div className="brand">
@@ -71,7 +118,8 @@ export default function App() {
         <span>beta</span>
       </div>
       <p className="tagline">
-        Guided App Spec → frozen JSON → Expo codegen. Fill the wizard, export your spec, then run codegen locally.
+        Guided App Spec → frozen JSON → Expo project. Run <code className="inline-code">npm run dev:platform</code> for
+        the API, then download a ready-to-run ZIP from the Review step.
       </p>
 
       <div className="step-indicator">
@@ -301,11 +349,14 @@ export default function App() {
           {v.ok && <p style={{ color: "var(--muted)", marginTop: 0 }}>Spec validates against the JSON Schema.</p>}
           <div className="json-preview">{JSON.stringify(spec, null, 2)}</div>
           <small className="hint" style={{ marginTop: "0.75rem" }}>
-            Download JSON, then run:{" "}
-            <code style={{ color: "var(--text)" }}>
+            CLI alternative:{" "}
+            <code className="inline-code">
               npm run codegen -- path/to/{spec.meta.slug}.spec.json ./out/MyApp
             </code>
           </small>
+          {zipMessage && (
+            <p style={{ color: "var(--accent)", marginTop: "0.75rem", fontSize: "0.9rem" }}>{zipMessage}</p>
+          )}
         </div>
       )}
 
@@ -319,9 +370,19 @@ export default function App() {
           </button>
         )}
         {step === STEPS.length - 1 && (
-          <button type="button" className="btn primary" onClick={downloadJson}>
-            Download App Spec JSON
-          </button>
+          <>
+            <button type="button" className="btn primary" onClick={downloadJson}>
+              Download App Spec JSON
+            </button>
+            <button
+              type="button"
+              className="btn primary"
+              disabled={!v.ok || zipLoading}
+              onClick={downloadExpoZip}
+            >
+              {zipLoading ? "Building ZIP…" : "Download Expo project (ZIP)"}
+            </button>
+          </>
         )}
       </div>
     </div>
