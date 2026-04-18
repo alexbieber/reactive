@@ -250,18 +250,6 @@ button.landing-nav-btn {
   display: block;
 }
 
-.brand-logo--hero {
-  margin: 0 auto 1rem;
-}
-
-.brand-logo-hero-img {
-  display: block;
-  width: min(92vw, 300px);
-  height: auto;
-  margin: 0 auto;
-  filter: drop-shadow(0 16px 48px rgba(0, 0, 0, 0.55));
-}
-
 .brand-row--logo {
   align-items: center;
 }
@@ -309,6 +297,11 @@ button.landing-nav-btn {
 .hero-ai {
   text-align: center;
   padding: 1.5rem 0 0.5rem;
+}
+
+/* Headline-led hero (logo only in nav — no duplicate mark) */
+.hero-ai--headline-first {
+  padding-top: 0.35rem;
 }
 
 .hero-ai-badge {

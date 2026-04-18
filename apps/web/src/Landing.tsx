@@ -35,8 +35,7 @@ export default function Landing({ onStartWizard, onStartStudio, onLoadDemo }: Pr
       </header>
 
       <div className="landing-inner landing-inner--wide">
-        <section className="hero-ai" aria-labelledby="hero-heading">
-          <BrandLogo variant="hero" />
+        <section className="hero-ai hero-ai--headline-first" aria-labelledby="hero-heading">
           <div className="hero-ai-badge">
             <span className="hero-ai-badge-dot" aria-hidden />
             Spec-locked · Expo · BYOK
