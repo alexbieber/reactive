@@ -7,7 +7,8 @@ const DEFAULT_MODELS = {
   openai: "gpt-4o-mini",
   /** Widely available; override in Studio for Claude 4, Opus, etc. */
   anthropic: "claude-3-5-sonnet-20241022",
-  google: "gemini-2.0-flash",
+  /** Override in Studio if your key only serves certain model ids */
+  google: "gemini-2.5-flash",
   groq: "llama-3.3-70b-versatile",
   mistral: "mistral-small-latest",
   /** NVIDIA NIM / build — OpenAI-compatible; override in Studio (e.g. google/gemma-2-9b-it) */
@@ -22,12 +23,52 @@ const OPENAI_COMPAT_BASE = {
   nvidia: "https://integrate.api.nvidia.com/v1",
 };
 
+/** Extract user-visible text from Gemini GenerateContentResponse JSON (handles multi-part + thinking parts) */
+function extractGeminiResponseText(j) {
+  const cands = j?.candidates;
+  if (!Array.isArray(cands) || !cands.length) return "";
+  const parts = cands[0]?.content?.parts;
+  if (!Array.isArray(parts)) return "";
+  let out = "";
+  for (const part of parts) {
+    if (part?.thought) continue;
+    if (typeof part?.text === "string" && part.text.length) out += part.text;
+  }
+  /* Some models stream dialogue only on parts flagged `thought` — if nothing else, use any text */
+  if (!out) {
+    for (const part of parts) {
+      if (typeof part?.text === "string" && part.text.length) out += part.text;
+    }
+  }
+  return out;
+}
+
+/** OpenAI-style delta.content may be string or an array of { type, text } chunks (some providers) */
+function* yieldOpenAiDeltaContent(delta) {
+  const c = delta?.content;
+  if (typeof c === "string" && c.length) {
+    yield c;
+    return;
+  }
+  if (!Array.isArray(c)) return;
+  for (const item of c) {
+    if (item?.type === "text" && typeof item.text === "string" && item.text.length) yield item.text;
+    else if (typeof item === "string" && item.length) yield item;
+  }
+}
+
 const MAX_KEY_LEN = 4096;
+
+/** Strip zero-width / BOM characters often copied from PDFs or chat UIs */
+function sanitizeApiKeyInput(s) {
+  if (typeof s !== "string") return "";
+  return s.replace(/[\u200B-\u200D\uFEFF]/g, "").trim();
+}
 
 /** @param {string} key */
 export function inferProviderFromKey(key) {
   if (!key || typeof key !== "string") return null;
-  const k = key.trim();
+  const k = sanitizeApiKeyInput(key);
   if (k.startsWith("sk-ant-api") || k.startsWith("sk-ant-")) return "anthropic";
   if (k.startsWith("gsk_")) return "groq";
   if (k.startsWith("AIza")) return "google";
@@ -48,12 +89,13 @@ function isAllowedProvider(p) {
 export function resolveLlmFromRequest(req, env) {
   const body = req.body ?? {};
   const raw = body.llm && typeof body.llm === "object" ? body.llm : {};
-  const userKey =
+  const rawKey =
     typeof raw.apiKey === "string"
-      ? raw.apiKey.trim()
+      ? raw.apiKey
       : typeof body.llmApiKey === "string"
-        ? body.llmApiKey.trim()
+        ? body.llmApiKey
         : "";
+  const userKey = sanitizeApiKeyInput(rawKey);
 
   let provider = String(raw.provider ?? body.llmProvider ?? "")
     .toLowerCase()
@@ -69,8 +111,12 @@ export function resolveLlmFromRequest(req, env) {
     if (userKey.length < 8 || userKey.length > MAX_KEY_LEN) {
       return { ok: false, error: "API key length invalid (8–4096 characters)." };
     }
-    if (!provider || provider === "auto") {
-      provider = inferProviderFromKey(userKey) || "openai";
+    const inferred = inferProviderFromKey(userKey);
+    /* Key shape wins over Studio dropdown — wrong provider + right key was a common failure mode */
+    if (inferred) {
+      provider = inferred;
+    } else if (!provider || provider === "auto") {
+      provider = "openai";
     }
     if (!isAllowedProvider(provider)) {
       return { ok: false, error: `Unknown provider: ${provider}` };
@@ -161,8 +207,8 @@ export async function* streamOpenAICompatible({
       if (data === "[DONE]") return;
       try {
         const j = JSON.parse(data);
-        const c = j.choices?.[0]?.delta?.content;
-        if (typeof c === "string" && c.length) yield c;
+        const delta = j.choices?.[0]?.delta;
+        yield* yieldOpenAiDeltaContent(delta);
       } catch (_) {
         /* ignore */
       }
@@ -171,9 +217,9 @@ export async function* streamOpenAICompatible({
 }
 
 /**
- * @param {{ apiKey: string, model: string, system: string, messages: {role: string, content: string}[], signal?: AbortSignal }} opts
+ * @param {{ apiKey: string, model: string, system: string, messages: {role: string, content: string}[], signal?: AbortSignal, temperature?: number }} opts
  */
-export async function* streamAnthropicChat({ apiKey, model, system, messages, signal }) {
+export async function* streamAnthropicChat({ apiKey, model, system, messages, signal, temperature = 0.35 }) {
   const r = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -188,7 +234,7 @@ export async function* streamAnthropicChat({ apiKey, model, system, messages, si
       stream: true,
       system,
       messages: messages.map((m) => ({ role: m.role, content: m.content })),
-      temperature: 0.35,
+      temperature,
     }),
     signal,
   });
@@ -229,10 +275,18 @@ export async function* streamAnthropicChat({ apiKey, model, system, messages, si
 }
 
 /**
- * @param {{ apiKey: string, model: string, system: string, messages: {role: string, content: string}[], signal?: AbortSignal }} opts
+ * @param {{ apiKey: string, model: string, system: string, messages: {role: string, content: string}[], signal?: AbortSignal, temperature?: number, maxOutputTokens?: number }} opts
  */
-export async function* streamGeminiChat({ apiKey, model, system, messages, signal }) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:streamGenerateContent?alt=sse&key=${encodeURIComponent(apiKey)}`;
+export async function* streamGeminiChat({
+  apiKey,
+  model,
+  system,
+  messages,
+  signal,
+  temperature = 0.35,
+  maxOutputTokens = 8192,
+}) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:streamGenerateContent?alt=sse`;
 
   const contents = [];
   for (const m of messages) {
@@ -242,9 +296,10 @@ export async function* streamGeminiChat({ apiKey, model, system, messages, signa
     });
   }
 
+  const outCap = Math.min(Math.max(256, maxOutputTokens), 8192);
   const body = {
     contents,
-    generationConfig: { temperature: 0.35 },
+    generationConfig: { temperature, maxOutputTokens: outCap },
   };
   if (system) {
     body.systemInstruction = { parts: [{ text: system }] };
@@ -252,14 +307,17 @@ export async function* streamGeminiChat({ apiKey, model, system, messages, signa
 
   const r = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "x-goog-api-key": apiKey,
+    },
     body: JSON.stringify(body),
     signal,
   });
 
   if (!r.ok) {
     const t = await r.text();
-    throw new Error((t || r.statusText).slice(0, 400));
+    throw new Error((t || r.statusText).slice(0, 500));
   }
 
   if (!r.body) throw new Error("Empty upstream body");
@@ -280,31 +338,49 @@ export async function* streamGeminiChat({ apiKey, model, system, messages, signa
       const data = trimmed.slice(6).trim();
       if (!data || data === "[DONE]") continue;
       try {
-        const j = JSON.parse(data);
-        const parts = j.candidates?.[0]?.content?.parts;
-        const t = parts?.[0]?.text;
-        if (typeof t === "string" && t.length) yield t;
-      } catch (_) {
-        /* ignore */
+        const parsed = JSON.parse(data);
+        const j = Array.isArray(parsed) ? parsed[0] : parsed;
+        if (j?.promptFeedback?.blockReason) {
+          throw new Error(`Gemini blocked the prompt: ${j.promptFeedback.blockReason}`);
+        }
+        const fr = j?.candidates?.[0]?.finishReason;
+        if (fr === "SAFETY" || fr === "BLOCKLIST" || fr === "PROHIBITED_CONTENT") {
+          throw new Error(`Gemini stopped (${fr}). Try a shorter topic or another model.`);
+        }
+        const text = extractGeminiResponseText(j);
+        if (text.length) yield text;
+      } catch (e) {
+        if (e instanceof Error && e.message.startsWith("Gemini")) throw e;
+        /* malformed chunk — skip */
       }
     }
   }
 }
 
 /**
- * @param {{ provider: string, apiKey: string, model: string, system: string, messages: {role: string, content: string}[], signal?: AbortSignal }} opts
+ * @param {{ provider: string, apiKey: string, model: string, system: string, messages: {role: string, content: string}[], signal?: AbortSignal, temperature?: number, max_tokens?: number }} opts
  */
 export async function* streamLlmChat(opts) {
   const { provider, apiKey, model, system, messages, signal } = opts;
+  const temperature = opts.temperature ?? 0.35;
+  const max_tokens = opts.max_tokens ?? 8192;
   const openaiMsgs = [{ role: "system", content: system }, ...messages];
 
   if (provider === "anthropic") {
-    yield* streamAnthropicChat({ apiKey, model, system, messages, signal });
+    yield* streamAnthropicChat({ apiKey, model, system, messages, signal, temperature });
     return;
   }
 
   if (provider === "google") {
-    yield* streamGeminiChat({ apiKey, model, system, messages, signal });
+    yield* streamGeminiChat({
+      apiKey,
+      model,
+      system,
+      messages,
+      signal,
+      temperature,
+      maxOutputTokens: max_tokens,
+    });
     return;
   }
 
@@ -318,6 +394,7 @@ export async function* streamLlmChat(opts) {
     messages: openaiMsgs,
     signal,
     extraHeaders: nvidiaHeaders,
+    extraBody: { temperature, max_tokens },
   });
 }
 
@@ -372,7 +449,7 @@ async function completeAnthropic({ apiKey, model, system, messages }) {
 }
 
 async function completeGemini({ apiKey, model, system, messages }) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
   const contents = [];
   for (const m of messages) {
     contents.push({
@@ -386,16 +463,21 @@ async function completeGemini({ apiKey, model, system, messages }) {
   }
   const r = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "x-goog-api-key": apiKey,
+    },
     body: JSON.stringify(body),
   });
   if (!r.ok) {
     const t = await r.text();
-    throw new Error((t || r.statusText).slice(0, 400));
+    throw new Error((t || r.statusText).slice(0, 500));
   }
   const data = await r.json();
-  const parts = data.candidates?.[0]?.content?.parts;
-  return parts?.[0]?.text || "";
+  if (!data.candidates?.length && data.promptFeedback?.blockReason) {
+    throw new Error(`Gemini blocked the prompt: ${data.promptFeedback.blockReason}`);
+  }
+  return extractGeminiResponseText(data) || "";
 }
 
 /**

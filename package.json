@@ -12,6 +12,8 @@
     "dev": "npm run dev -w web",
     "dev:api": "npm run dev -w api",
     "dev:platform": "concurrently -k -n api,web -c blue,magenta \"npm run dev -w api\" \"npm run dev -w web\"",
+    "dev:platform:fresh": "node scripts/free-port.mjs 8788 && npm run dev:platform",
+    "dev:api:root": "node apps/api/src/server.mjs",
     "build": "npm run build -w web",
     "start": "node apps/api/src/server.mjs",
     "codegen": "node scripts/codegen.mjs",

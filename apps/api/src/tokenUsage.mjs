@@ -27,24 +27,37 @@ export function countCompletionTokens(text) {
  */
 export function computeChatTokenUsage(p) {
   const { provider, model, system, messages, completionText } = p;
-  const promptTokens = countPromptTokens(system, messages);
-  const completionTokens = countCompletionTokens(completionText);
-  const totalTokens = promptTokens + completionTokens;
-  const isOpenAiBillingShape = provider === "openai";
-  return {
-    provider,
-    model,
-    promptTokens,
-    completionTokens,
-    totalTokens,
-    encoder: "gpt-tokenizer:gpt-4o-mini (o200k_base)",
-    estimate:
-      !isOpenAiBillingShape
-        ? "Non-OpenAI providers use different tokenizers for billing; counts are GPT-style for comparison."
-        : model && !/^gpt-4o(-mini)?/i.test(model)
-          ? "Model differs from gpt-4o-mini tokenizer baseline; treat as close estimate."
-          : undefined,
-  };
+  try {
+    const promptTokens = countPromptTokens(system, messages);
+    const completionTokens = countCompletionTokens(completionText);
+    const totalTokens = promptTokens + completionTokens;
+    const isOpenAiBillingShape = provider === "openai";
+    return {
+      provider,
+      model,
+      promptTokens,
+      completionTokens,
+      totalTokens,
+      encoder: "gpt-tokenizer:gpt-4o-mini (o200k_base)",
+      estimate:
+        !isOpenAiBillingShape
+          ? "Non-OpenAI providers use different tokenizers for billing; counts are GPT-style for comparison."
+          : model && !/^gpt-4o(-mini)?/i.test(model)
+            ? "Model differs from gpt-4o-mini tokenizer baseline; treat as close estimate."
+            : undefined,
+    };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return {
+      provider,
+      model,
+      promptTokens: 0,
+      completionTokens: 0,
+      totalTokens: 0,
+      encoder: "unavailable",
+      estimate: `Token estimate skipped (${msg.slice(0, 120)})`,
+    };
+  }
 }
 
 /**

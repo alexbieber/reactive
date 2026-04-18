@@ -10,6 +10,7 @@ import { fileURLToPath } from "url";
 import { spawnSync } from "child_process";
 import Ajv2020 from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
+import { normalizeAppSpecForSchema } from "../apps/api/src/normalizeAppSpec.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, "..");
@@ -393,11 +394,12 @@ function main() {
   const absSpec = path.isAbsolute(specPath) ? specPath : path.join(process.cwd(), specPath);
   const absOut = path.isAbsolute(outDir) ? outDir : path.join(process.cwd(), outDir);
 
-  const spec = loadSpec(absSpec);
+  let spec = loadSpec(absSpec);
+  spec = normalizeAppSpecForSchema(spec);
   validateSpec(spec);
 
   if (spec.navigation.type !== "tabs") {
-    console.error("codegen v1 only supports navigation.type \"tabs\".");
+    console.error('codegen v1 only supports navigation.type "tabs" (normalize failed to coerce).');
     process.exit(1);
   }
 

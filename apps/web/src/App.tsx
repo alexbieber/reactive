@@ -3,6 +3,9 @@ import BrandLogo from "./BrandLogo";
 import { createDefaultSpec, slugify } from "./defaultSpec";
 import Landing from "./Landing";
 import Studio from "./Studio";
+import TeamRoom from "./TeamRoom";
+import BuilderFlow from "./builder/BuilderFlow";
+import { useBuilderStore } from "./builder/builderStore";
 import type { AppSpec, Archetype, Block } from "./types";
 import { stampTimes, validateSpec } from "./validateSpec";
 
@@ -40,16 +43,18 @@ const BLOCKS: Block[] = [
 
 const apiBase = import.meta.env.VITE_API_BASE ?? "";
 
-function initialView(): "landing" | "wizard" | "studio" {
+function initialView(): "landing" | "wizard" | "studio" | "builder" | "teamroom" {
   if (typeof window === "undefined") return "landing";
   const q = new URLSearchParams(window.location.search);
   if (q.get("studio") === "1") return "studio";
   if (q.get("wizard") === "1" || q.get("build") === "1") return "wizard";
+  if (q.get("project") === "1" || q.get("quick") === "1") return "builder";
+  if (q.get("teamroom") === "1" || q.get("conference") === "1") return "teamroom";
   return "landing";
 }
 
 export default function App() {
-  const [view, setView] = useState<"landing" | "wizard" | "studio">(initialView);
+  const [view, setView] = useState<"landing" | "wizard" | "studio" | "builder" | "teamroom">(initialView);
   const [studioInitialSpec, setStudioInitialSpec] = useState<AppSpec>(() => createDefaultSpec());
   const [studioKey, setStudioKey] = useState(0);
   const [step, setStep] = useState(0);
@@ -134,7 +139,7 @@ export default function App() {
       const raw = e instanceof Error ? e.message : String(e);
       const hint =
         /failed to fetch|networkerror|load failed/i.test(raw) || e instanceof TypeError
-          ? " Is the API running? In this repo run: npm run dev:platform (or npm run dev -w api on port 8787)."
+          ? " Is the API running? In this repo run: npm run dev:platform (API listens on port 8788 by default)."
           : "";
       setValidationError(raw + hint);
     } finally {
@@ -167,8 +172,54 @@ export default function App() {
             setValidationError(null);
             window.history.pushState({}, "", "?wizard=1");
           }}
+          onProjectBuild={() => {
+            setView("builder");
+            setValidationError(null);
+            window.history.pushState({}, "", "?project=1");
+          }}
+          onTeamRoom={() => {
+            setView("teamroom");
+            setValidationError(null);
+            window.history.pushState({}, "", "?teamroom=1");
+          }}
         />
       </div>
+    );
+  }
+
+  if (view === "teamroom") {
+    return (
+      <TeamRoom
+        onBack={() => {
+          setView("landing");
+          window.history.pushState({}, "", "/");
+        }}
+        onOpenStudio={() => {
+          setStudioInitialSpec(createDefaultSpec());
+          setStudioKey((k) => k + 1);
+          setView("studio");
+          window.history.pushState({}, "", "?studio=1");
+        }}
+      />
+    );
+  }
+
+  if (view === "builder") {
+    return (
+      <BuilderFlow
+        onBack={() => {
+          useBuilderStore.getState().reset();
+          setView("landing");
+          window.history.pushState({}, "", "/");
+        }}
+        onOpenStudio={() => {
+          setStudioInitialSpec(createDefaultSpec());
+          setStudioKey((k) => k + 1);
+          setView("studio");
+          setValidationError(null);
+          window.history.pushState({}, "", "?studio=1");
+        }}
+      />
     );
   }
 
@@ -180,6 +231,16 @@ export default function App() {
         onBack={() => {
           setView("landing");
           window.history.pushState({}, "", "/");
+        }}
+        onOpenProjectBuild={() => {
+          setView("builder");
+          setValidationError(null);
+          window.history.pushState({}, "", "?project=1");
+        }}
+        onOpenTeamRoom={() => {
+          setView("teamroom");
+          setValidationError(null);
+          window.history.pushState({}, "", "?teamroom=1");
         }}
       />
     );

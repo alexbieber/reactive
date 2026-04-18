@@ -10,6 +10,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import Ajv2020 from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
+import { normalizeAppSpecForSchema } from "../apps/api/src/normalizeAppSpec.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, "..");
@@ -20,7 +21,8 @@ const target =
   path.join(root, "docs", "spec-schema", "examples", "habit-tracker.spec.json");
 
 const schema = JSON.parse(fs.readFileSync(schemaPath, "utf8"));
-const data = JSON.parse(fs.readFileSync(target, "utf8"));
+const raw = JSON.parse(fs.readFileSync(target, "utf8"));
+const data = normalizeAppSpecForSchema(raw);
 
 const ajv = new Ajv2020({ allErrors: true, strict: false });
 addFormats(ajv);

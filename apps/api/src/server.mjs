@@ -4,7 +4,6 @@
 
 import archiver from "archiver";
 import { randomBytes } from "crypto";
-import { spawnSync } from "child_process";
 import cors from "cors";
 import express from "express";
 import fs from "fs";
@@ -12,6 +11,7 @@ import os from "os";
 import path from "path";
 import { fileURLToPath } from "url";
 import { buildCopilotSystem } from "./copilotPrompt.mjs";
+import { buildProjectBuildCopilotSystem } from "./projectBuildCopilotPrompt.mjs";
 import {
   materializeProject,
   runExpoWebExport,
@@ -19,6 +19,7 @@ import {
   rewritePreviewPaths,
 } from "./buildProject.mjs";
 import { completeLlmChat, resolveLlmFromRequest, streamLlmChat } from "./llmStream.mjs";
+import { normalizeAppSpecForSchema } from "./normalizeAppSpec.mjs";
 import { validateSpecObject } from "./specValidate.mjs";
 import {
   fetchGithubRepoContext,
@@ -26,11 +27,27 @@ import {
   parseGithubRepoInput,
 } from "./githubContext.mjs";
 import { computeChatTokenUsage, computeSpecJsonTokenUsage } from "./tokenUsage.mjs";
+import {
+  CLARIFICATION_PROMPT,
+  GENERATION_PROMPT,
+  parseQuestionsJson,
+} from "./rnBuilderPrompts.mjs";
+import { buildTeamRoomSystem } from "./teamRoomPrompt.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, "..", "..", "..");
 
+/** Must match GET /api/health — bump when routes or capabilities change */
+const API_VERSION = "1.4.0";
+
 const app = express();
+
+/** Express 4 does not catch rejected promises from async route handlers — forward to error middleware */
+function asyncRoute(handler) {
+  return (req, res, next) => {
+    Promise.resolve(handler(req, res, next)).catch(next);
+  };
+}
 
 if (process.env.TRUST_PROXY === "1" || process.env.TRUST_PROXY === "true") {
   app.set("trust proxy", 1);
@@ -70,7 +87,7 @@ app.get("/api/health", (_req, res) => {
   res.json({
     ok: true,
     service: "reactive-api",
-    version: "1.2.0",
+    version: API_VERSION,
     openaiModel: process.env.OPENAI_MODEL || "gpt-4o-mini",
     nvidiaModel: process.env.NVIDIA_MODEL || "meta/llama-3.1-8b-instruct",
     capabilities: {
@@ -84,7 +101,11 @@ app.get("/api/health", (_req, res) => {
       serverNvidiaKey: Boolean(process.env.NVIDIA_API_KEY),
       llmProviders: ["openai", "anthropic", "google", "groq", "mistral", "nvidia"],
       githubRepoContext: true,
+      /** POST /api/team-room/stream — multi-agent conference (no App Spec) */
+      teamRoomStream: true,
       tokenEstimates: true,
+      /** plannew-style: prompt → JSON questions → stream ===FILE=== project */
+      rnQuickBuilder: true,
     },
   });
 });
@@ -135,7 +156,15 @@ function buildSystemPrompt(reqBody) {
   const spec = reqBody?.spec;
   const client = reqBody?.githubContext;
   const augment = githubContextToPromptAugment(client);
-  return buildCopilotSystem(spec, augment);
+  const copilotContext = reqBody?.copilotContext;
+  const phase = copilotContext?.phase;
+  if (
+    copilotContext &&
+    (phase === "project-build-post" || phase === "quick-build-post")
+  ) {
+    return buildProjectBuildCopilotSystem(spec, copilotContext);
+  }
+  return buildCopilotSystem(spec, augment, copilotContext);
 }
 
 function getSafeChatMessages(body) {
@@ -153,6 +182,17 @@ function getSafeChatMessages(body) {
   return safe.length ? safe : null;
 }
 
+/** Team conference room: use messages[] or a single facilitator message from topic */
+function getTeamRoomMessages(body) {
+  const fromChat = getSafeChatMessages(body);
+  if (fromChat) return fromChat;
+  const topic = typeof body?.topic === "string" ? body.topic.trim() : "";
+  const content =
+    topic.slice(0, 12000) ||
+    "Stand-up: align on what we're shipping next in REACTIVE (Expo previews, App Spec, Project build) — who owns what and what could bite us?";
+  return [{ role: "user", content }];
+}
+
 function extractAndValidateProposedSpec(text) {
   const m = text.match(/```json\s*([\s\S]*?)```/);
   if (!m) {
@@ -160,8 +200,9 @@ function extractAndValidateProposedSpec(text) {
   }
   try {
     const obj = JSON.parse(m[1].trim());
-    const v = validateSpecObject(obj);
-    if (v.ok) return { proposedSpec: obj, specValidationError: null };
+    const normalized = normalizeAppSpecForSchema(obj);
+    const v = validateSpecObject(normalized);
+    if (v.ok) return { proposedSpec: normalized, specValidationError: null };
     return { proposedSpec: null, specValidationError: v.error };
   } catch (e) {
     return { proposedSpec: null, specValidationError: `Invalid JSON in code block: ${e.message}` };
@@ -169,22 +210,9 @@ function extractAndValidateProposedSpec(text) {
 }
 
 app.post("/api/validate", (req, res) => {
-  const spec = req.body;
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "reactive-val-"));
-  const specPath = path.join(tmp, "spec.json");
-  try {
-    fs.writeFileSync(specPath, JSON.stringify(spec, null, 2));
-    const r = spawnSync(process.execPath, [path.join(root, "scripts", "validate-spec.mjs"), specPath], {
-      encoding: "utf8",
-    });
-    if (r.status === 0) return res.json({ ok: true });
-    return res.status(400).json({
-      ok: false,
-      error: (r.stderr || r.stdout || "validation failed").trim(),
-    });
-  } finally {
-    fs.rmSync(tmp, { recursive: true, force: true });
-  }
+  const v = validateSpecObject(req.body);
+  if (v.ok) return res.json({ ok: true });
+  return res.status(400).json({ ok: false, error: v.error });
 });
 
 app.post("/api/generate", async (req, res) => {
@@ -193,12 +221,18 @@ app.post("/api/generate", async (req, res) => {
     return res.status(400).json({ error: "Invalid body: expected App Spec with meta.slug" });
   }
 
+  const normalized = normalizeAppSpecForSchema(spec);
+  const v = validateSpecObject(normalized);
+  if (!v.ok) {
+    return res.status(400).json({ ok: false, error: v.error });
+  }
+
   let tmp;
   try {
-    const { tmp: t, outDir } = materializeProject(spec);
+    const { tmp: t, outDir } = materializeProject(normalized);
     tmp = t;
 
-    const slug = String(spec.meta.slug).replace(/[^a-z0-9-]/gi, "-") || "expo-app";
+    const slug = String(normalized.meta.slug).replace(/[^a-z0-9-]/gi, "-") || "expo-app";
     res.setHeader("Content-Type", "application/zip");
     res.setHeader("Content-Disposition", `attachment; filename="${slug}-expo.zip"`);
 
@@ -227,9 +261,15 @@ app.post("/api/preview-build", async (req, res) => {
     return res.status(400).json({ error: "Invalid App Spec" });
   }
 
+  const normalized = normalizeAppSpecForSchema(spec);
+  const v = validateSpecObject(normalized);
+  if (!v.ok) {
+    return res.status(400).json({ ok: false, error: v.error });
+  }
+
   let tmp;
   try {
-    const { tmp: t, outDir } = materializeProject(spec);
+    const { tmp: t, outDir } = materializeProject(normalized);
     tmp = t;
     await runExpoWebExport(outDir);
 
@@ -244,11 +284,11 @@ app.post("/api/preview-build", async (req, res) => {
     rewritePreviewPaths(webDist, previewBase);
     previewSessions.set(id, { tmp, created: Date.now() });
 
-    const entry = previewEntryHtml(spec);
+    const entry = previewEntryHtml(normalized);
     const entryPath = path.join(webDist, entry);
     const fallback = fs.existsSync(entryPath) ? entry : fs.readdirSync(webDist).find((f) => f.endsWith(".html") && !f.startsWith("+")) || "today.html";
 
-    const specTu = computeSpecJsonTokenUsage(spec);
+    const specTu = computeSpecJsonTokenUsage(normalized);
     res.json({
       ok: true,
       previewId: id,
@@ -264,7 +304,18 @@ app.post("/api/preview-build", async (req, res) => {
   } catch (e) {
     console.error(e);
     if (tmp) fs.rmSync(tmp, { recursive: true, force: true });
-    if (!res.headersSent) res.status(500).json({ ok: false, error: String(e.message || e) });
+    if (!res.headersSent) {
+      const msg = String(e.message || e);
+      const isCodegen =
+        /codegen|navigation\.type|tabs|validation failed|npm install|expo export/i.test(msg);
+      res.status(isCodegen ? 422 : 500).json({
+        ok: false,
+        error: msg,
+        hint: isCodegen
+          ? "Check App Spec (navigation routes, design colors). Codegen v1 requires tab navigation; stack/tabs-stack are coerced to tabs. Retry Build preview after fixing the spec or use a demo spec."
+          : undefined,
+      });
+    }
   }
 });
 
@@ -294,7 +345,9 @@ app.use("/api/preview-frame/:id", (req, res, next) => {
   });
 });
 
-app.post("/api/chat", async (req, res) => {
+app.post(
+  "/api/chat",
+  asyncRoute(async (req, res) => {
   const resolved = resolveLlmFromRequest(req, process.env);
   if (!resolved.ok) {
     return res.status(501).json({
@@ -308,7 +361,13 @@ app.post("/api/chat", async (req, res) => {
     return res.status(400).json({ error: "messages[] required with valid user/assistant entries" });
   }
 
-  const system = buildSystemPrompt(req.body);
+  let system;
+  try {
+    system = buildSystemPrompt(req.body);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return res.status(400).json({ error: `Could not build copilot prompt: ${msg.slice(0, 280)}` });
+  }
 
   try {
     const text = await completeLlmChat({
@@ -333,12 +392,15 @@ app.post("/api/chat", async (req, res) => {
     const safe = process.env.NODE_ENV === "production" ? "Model request failed" : msg.slice(0, 500);
     res.status(502).json({ error: safe });
   }
-});
+  })
+);
 
 /**
  * SSE stream: token deltas then final { done, proposedSpec?, specValidationError? }
  */
-app.post("/api/chat/stream", async (req, res) => {
+app.post(
+  "/api/chat/stream",
+  asyncRoute(async (req, res) => {
   const resolved = resolveLlmFromRequest(req, process.env);
   if (!resolved.ok) {
     return res.status(501).json({
@@ -352,7 +414,13 @@ app.post("/api/chat/stream", async (req, res) => {
     return res.status(400).json({ error: "messages[] required with valid user/assistant entries" });
   }
 
-  const system = buildSystemPrompt(req.body);
+  let system;
+  try {
+    system = buildSystemPrompt(req.body);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return res.status(400).json({ error: `Could not build copilot prompt: ${msg.slice(0, 280)}` });
+  }
 
   res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
   res.setHeader("Cache-Control", "no-cache, no-transform");
@@ -392,17 +460,294 @@ app.post("/api/chat/stream", async (req, res) => {
       messages: safeMessages,
       completionText: full,
     });
-    writeSse({ type: "done", fullText: full, proposedSpec, specValidationError, tokenUsage });
+    const donePayload = { type: "done", fullText: full, proposedSpec, specValidationError, tokenUsage };
+    try {
+      JSON.stringify(donePayload);
+      writeSse(donePayload);
+    } catch {
+      writeSse({
+        type: "done",
+        fullText: full,
+        proposedSpec: null,
+        specValidationError: specValidationError ?? "Could not serialize proposed spec for stream",
+        tokenUsage,
+      });
+    }
+    res.end();
+  } catch (e) {
+    clearTimeout(t);
+    const msg = e instanceof Error ? e.message : String(e);
+    try {
+      writeSse({
+        type: "error",
+        message: process.env.NODE_ENV === "production" ? "Stream failed" : msg.slice(0, 400),
+      });
+    } catch (_) {
+      /* response may be closed */
+    }
+    try {
+      res.end();
+    } catch (_) {
+      /* ignore */
+    }
+  }
+  })
+);
+
+/**
+ * Probe: confirms this process has the team-room routes (use after deploy / pull). GET never streams.
+ */
+app.get("/api/team-room", (_req, res) => {
+  res.json({
+    ok: true,
+    post: "/api/team-room/stream",
+    hint: "GET is a capability check. Start a meeting with POST + JSON body { topic } or { messages[] }.",
+  });
+});
+
+/**
+ * Conference room: teammates speak to each other (bracket tags) — same LLM / BYOK as Studio; no App Spec.
+ */
+app.post(
+  "/api/team-room/stream",
+  asyncRoute(async (req, res) => {
+    const resolved = resolveLlmFromRequest(req, process.env);
+    if (!resolved.ok) {
+      return res.status(501).json({
+        error: resolved.error,
+        hint: "Add OPENAI_API_KEY or NVIDIA_API_KEY on the API, or paste your key in Studio (Bring your own API key).",
+      });
+    }
+
+    const safeMessages = getTeamRoomMessages(req.body);
+
+    const continuation = safeMessages.some((m) => m.role === "assistant");
+    const system = buildTeamRoomSystem({ continuation });
+
+    res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
+    res.setHeader("Cache-Control", "no-cache, no-transform");
+    res.setHeader("Connection", "keep-alive");
+    if (typeof res.flushHeaders === "function") res.flushHeaders();
+
+    const ac = new AbortController();
+    const t = setTimeout(() => ac.abort(), 180000);
+    req.on("close", () => {
+      clearTimeout(t);
+      ac.abort();
+    });
+
+    const writeSse = (obj) => {
+      res.write(`data: ${JSON.stringify(obj)}\n\n`);
+    };
+
+    try {
+      let full = "";
+      for await (const chunk of streamLlmChat({
+        provider: resolved.provider,
+        apiKey: resolved.apiKey,
+        model: resolved.model,
+        system,
+        messages: safeMessages,
+        signal: ac.signal,
+        temperature: 0.82,
+        max_tokens: 16000,
+      })) {
+        full += chunk;
+        writeSse({ type: "delta", text: chunk });
+      }
+      clearTimeout(t);
+      if (!full.trim()) {
+        writeSse({
+          type: "error",
+          message:
+            "Model returned no text — check BYOK key, model id in Studio, and provider status; try a shorter topic if filters block.",
+        });
+        res.end();
+        return;
+      }
+      const tokenUsage = computeChatTokenUsage({
+        provider: resolved.provider,
+        model: resolved.model,
+        system,
+        messages: safeMessages,
+        completionText: full,
+      });
+      writeSse({ type: "done", fullText: full, tokenUsage });
+      res.end();
+    } catch (e) {
+      clearTimeout(t);
+      const msg = e instanceof Error ? e.message : String(e);
+      try {
+        writeSse({
+          type: "error",
+          message: process.env.NODE_ENV === "production" ? "Team room stream failed" : msg.slice(0, 400),
+        });
+      } catch (_) {}
+      try {
+        res.end();
+      } catch (_) {}
+    }
+  })
+);
+
+/**
+ * Project RN builder (plannew flow): clarifying questions as JSON — same BYOK / multi-provider as Studio.
+ */
+app.post("/api/builder/clarify", async (req, res) => {
+  const resolved = resolveLlmFromRequest(req, process.env);
+  if (!resolved.ok) {
+    return res.status(501).json({
+      error: resolved.error,
+      hint: "Add OPENAI_API_KEY or NVIDIA_API_KEY on the API, or pass llm from the browser (BYOK).",
+    });
+  }
+  const prompt = typeof req.body?.prompt === "string" ? req.body.prompt.trim() : "";
+  if (!prompt) {
+    return res.status(400).json({ error: "prompt required" });
+  }
+  if (prompt.length > 48000) {
+    return res.status(400).json({ error: "prompt too long" });
+  }
+
+  try {
+    const text = await completeLlmChat({
+      provider: resolved.provider,
+      apiKey: resolved.apiKey,
+      model: resolved.model,
+      system: CLARIFICATION_PROMPT,
+      messages: [{ role: "user", content: prompt }],
+    });
+    const questions = parseQuestionsJson(text);
+    const tokenUsage = computeChatTokenUsage({
+      provider: resolved.provider,
+      model: resolved.model,
+      system: CLARIFICATION_PROMPT,
+      messages: [{ role: "user", content: prompt }],
+      completionText: text,
+    });
+    res.json({ questions, tokenUsage });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    const hint =
+      /JSON|Unexpected token/i.test(msg) || msg.includes("parse")
+        ? "The model did not return pure JSON. Retry or switch model."
+        : undefined;
+    res.status(502).json({
+      error: msg.slice(0, 500),
+      ...(hint ? { hint } : {}),
+    });
+  }
+});
+
+/**
+ * Stream full ===FILE=== project text (plannew-style). Long timeout for large generations.
+ */
+app.post("/api/builder/generate-stream", async (req, res) => {
+  const resolved = resolveLlmFromRequest(req, process.env);
+  if (!resolved.ok) {
+    return res.status(501).json({
+      error: resolved.error,
+      hint: "Add OPENAI_API_KEY or NVIDIA_API_KEY on the API, or pass llm from the browser (BYOK).",
+    });
+  }
+
+  const prompt = typeof req.body?.prompt === "string" ? req.body.prompt.trim() : "";
+  const answers = Array.isArray(req.body?.answers) ? req.body.answers : [];
+  const questions = Array.isArray(req.body?.questions) ? req.body.questions : [];
+  if (!prompt) {
+    return res.status(400).json({ error: "prompt required" });
+  }
+
+  let qaBlock = "";
+  if (questions.length > 0) {
+    const lines = [];
+    for (const q of questions) {
+      if (!q || typeof q !== "object") continue;
+      const id = q.id;
+      const qtext = typeof q.question === "string" ? q.question.trim() : "";
+      const a = answers.find((x) => x && x.questionId === id);
+      const aval = a && typeof a.value === "string" ? a.value.trim() : String(a?.value ?? "").trim();
+      lines.push(`Q: ${qtext || `(question ${id})`}`);
+      lines.push(`A: ${aval || "(empty)"}`);
+      lines.push("");
+    }
+    qaBlock = lines.join("\n").trim();
+  }
+  if (!qaBlock) {
+    qaBlock = answers.map((a) => `Q${a.questionId}: ${String(a.value ?? "")}`).join("\n");
+  }
+
+  const userContent = `## App idea
+${prompt}
+
+## Clarifications (implement all that apply)
+${qaBlock}
+
+## Instructions
+Generate the **complete** React Native (Expo) project per the system prompt. The app must reflect the idea and clarifications above — not a generic template with placeholder names.`;
+
+  res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
+  res.setHeader("Cache-Control", "no-cache, no-transform");
+  res.setHeader("Connection", "keep-alive");
+  if (typeof res.flushHeaders === "function") res.flushHeaders();
+
+  const ac = new AbortController();
+  const t = setTimeout(() => ac.abort(), 300000);
+  req.on("close", () => {
+    clearTimeout(t);
+    ac.abort();
+  });
+
+  const writeSse = (obj) => {
+    res.write(`data: ${JSON.stringify(obj)}\n\n`);
+  };
+
+  try {
+    let full = "";
+    for await (const chunk of streamLlmChat({
+      provider: resolved.provider,
+      apiKey: resolved.apiKey,
+      model: resolved.model,
+      system: GENERATION_PROMPT,
+      messages: [{ role: "user", content: userContent }],
+      signal: ac.signal,
+    })) {
+      full += chunk;
+      writeSse({ type: "delta", text: chunk });
+    }
+    clearTimeout(t);
+    const tokenUsage = computeChatTokenUsage({
+      provider: resolved.provider,
+      model: resolved.model,
+      system: GENERATION_PROMPT,
+      messages: [{ role: "user", content: userContent }],
+      completionText: full,
+    });
+    writeSse({ type: "done", fullText: full, tokenUsage });
     res.end();
   } catch (e) {
     clearTimeout(t);
     const msg = e instanceof Error ? e.message : String(e);
     writeSse({
       type: "error",
-      message: process.env.NODE_ENV === "production" ? "Stream failed" : msg.slice(0, 400),
+      message: process.env.NODE_ENV === "production" ? "Generation failed" : msg.slice(0, 500),
     });
     res.end();
   }
+});
+
+app.use((err, req, res, _next) => {
+  console.error("[api]", err);
+  if (res.headersSent) {
+    try {
+      res.end();
+    } catch {
+      /* ignore */
+    }
+    return;
+  }
+  const msg = err instanceof Error ? err.message : String(err);
+  res.status(500).json({ error: msg.slice(0, 500) });
 });
 
 const SERVE_STATIC = process.env.SERVE_STATIC === "1" || process.env.SERVE_STATIC === "true";
@@ -418,7 +763,10 @@ if (SERVE_STATIC) {
   }
 }
 
-const PORT = Number(process.env.PORT) || 8787;
+/** Default below avoids clashing with other local apps that bind 8787 and only expose /api/health */
+const PORT = Number(process.env.PORT) || 8788;
 app.listen(PORT, () => {
-  console.log(`REACTIVE API http://localhost:${PORT}${SERVE_STATIC ? " (+serving web dist)" : ""}`);
+  console.log(
+    `REACTIVE API v${API_VERSION} http://localhost:${PORT}${SERVE_STATIC ? " (+serving web dist)" : ""}`
+  );
 });

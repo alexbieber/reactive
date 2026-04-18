@@ -10,8 +10,10 @@ export default defineConfig({
     },
     proxy: {
       "/api": {
-        target: "http://127.0.0.1:8787",
+        /** Must match apps/api listen port (default 8788). Override: API_PROXY_TARGET=http://127.0.0.1:9797 */
+        target: process.env.API_PROXY_TARGET ?? "http://127.0.0.1:8788",
         changeOrigin: true,
+        timeout: 180000,
       },
     },
   },

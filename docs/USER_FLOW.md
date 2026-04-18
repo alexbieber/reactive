@@ -3,7 +3,7 @@
 ## Prerequisites
 
 - **ZIP from the browser** needs **both** processes: `npm run dev:platform` (Vite + API).  
-  Vite proxies **`/api/*`** → **`http://127.0.0.1:8787`**.
+  Vite proxies **`/api/*`** → **`http://127.0.0.1:8788`** (REACTIVE API default port).
 
 ## Flow A — Landing → wizard → export
 
@@ -28,7 +28,7 @@ No browser: `npm run codegen -- <spec.json> <outDir>` then `npm install` in `out
 | Symptom | Cause | Fix |
 |--------|--------|-----|
 | ZIP button fails with “Failed to fetch” | API not running | `npm run dev:platform` or `npm run dev -w api` |
-| Wrong port | 5173 in use | Use the port Vite prints; proxy still targets 8787 |
+| Wrong port | 5173 in use | Use the port Vite prints; proxy still targets 8788 |
 | Slow ZIP | `npm install` inside codegen | Expected; wait |
 
 ## Production (Docker / single server)

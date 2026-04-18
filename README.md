@@ -76,7 +76,15 @@ npm run dev:platform
 ```
 
 - **Web:** Vite prints a URL (often `http://localhost:5173`; next free port if busy).
-- **API:** `http://localhost:8787` — check `http://localhost:8787/api/health`.
+- **API:** `http://localhost:8788` — check `http://localhost:8788/api/health` (default port avoids clashing with other tools that used **8787**).
+
+**Studio chat shows “Cannot POST /api/chat/stream” (404)?** Vite is proxying `/api` to the wrong process. Run **`npm run dev:platform`** from this repo so the Express app listens on **8788** (or set `PORT` + `API_PROXY_TARGET` to match). Confirm with:
+
+`curl -s -X POST http://127.0.0.1:8788/api/chat/stream -H 'Content-Type: application/json' -d '{"messages":[{"role":"user","content":"hi"}]}' | head -c 120` — you should see `data:` SSE lines, not HTML “Cannot POST”.
+
+**Team conference room (`Cannot POST /api/team-room/stream`)?** The process on **8788** is usually an **old** API. From repo root: **`npm run dev:platform:fresh`** (SIGTERM then SIGKILL anything still on **8788**, then `dev:platform`). Or **`npm run dev:api:root`** (API only — terminal should log **`REACTIVE API v1.4.0`**). Confirm:
+
+`curl -s http://127.0.0.1:8788/api/team-room` → `"ok":true` · `curl -s http://127.0.0.1:8788/api/health` → **`version`** **1.3+** (current repo: **1.4.0**) and **`teamRoomStream`: true**.
 
 Studio needs the API. The web app proxies `/api` to the API in dev (see `apps/web` Vite config).
 
@@ -124,13 +132,15 @@ Commit updated files under `apps/web/public/` after regenerating.
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| `GET` | `/api/health` | Service info, `openaiModel`, `nvidiaModel`, capabilities (`codegen`, `preview`, `chat`, `chatStream`, `githubRepoContext`, `tokenEstimates`, `serverOpenAiKey`, `serverNvidiaKey`, `llmProviders`). |
+| `GET` | `/api/health` | Service info, `openaiModel`, `nvidiaModel`, capabilities (`codegen`, `preview`, `chat`, `chatStream`, `rnQuickBuilder`, `githubRepoContext`, `tokenEstimates`, `serverOpenAiKey`, `serverNvidiaKey`, `llmProviders`). |
 | `POST` | `/api/validate` | Body: App Spec JSON → validate (AJV / schema pipeline). |
 | `POST` | `/api/generate` | Body: App Spec → **ZIP** of generated Expo project. |
 | `POST` | `/api/preview-build` | Body: App Spec → build Expo web export → `{ previewId, entry, tokenUsage }` (spec JSON size; no LLM). |
 | `GET` | `/api/preview-frame/:id/*` | Static files for the preview iframe (session expires ~1h). |
 | `POST` | `/api/chat` | Body: `{ messages, spec, llm?, githubContext? }` → `{ reply, proposedSpec?, specValidationError?, tokenUsage }`. |
 | `POST` | `/api/chat/stream` | Same body; **SSE** with `delta` chunks and final `done` (includes `tokenUsage`). |
+| `POST` | `/api/builder/clarify` | Body: `{ prompt, llm? }` — plannew-style **5 clarifying questions** as JSON (same BYOK / multi-provider as chat). |
+| `POST` | `/api/builder/generate-stream` | Body: `{ prompt, answers: [{ questionId, value }], llm? }` — **SSE** streaming `===FILE===…===END===` Expo project text; final `done` has `fullText`, `tokenUsage`. |
 | `POST` | `/api/github/context` | Body: `{ repo, ref?, appPath? }` → README, manifests, configs (public repos). |
 
 Request bodies are JSON (large specs allowed; limit is several MB).
@@ -149,7 +159,7 @@ Request bodies are JSON (large specs allowed; limit is several MB).
 | `CORS_ORIGIN` | Comma-separated allowed origins (**set in production**). |
 | `TRUST_PROXY` | `1` if behind a reverse proxy using `X-Forwarded-*`. |
 | `NODE_ENV=production` | Sanitizes client-visible LLM errors. |
-| `PORT` | API port (default `8787`). |
+| `PORT` | API port (default `8788`). |
 | `SERVE_STATIC` | `1` to serve `apps/web/dist` from the API (single-process deploy). |
 | `VITE_PUBLIC_PREVIEW_ORIGIN` | **Build-time** (web): public origin for preview URLs/QR when not using localhost. |
 
