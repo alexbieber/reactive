@@ -10,12 +10,16 @@ const DEFAULT_MODELS = {
   google: "gemini-2.0-flash",
   groq: "llama-3.3-70b-versatile",
   mistral: "mistral-small-latest",
+  /** NVIDIA NIM / build — OpenAI-compatible; override in Studio (e.g. google/gemma-2-9b-it) */
+  nvidia: "meta/llama-3.1-8b-instruct",
 };
 
 const OPENAI_COMPAT_BASE = {
   openai: "https://api.openai.com/v1",
   groq: "https://api.groq.com/openai/v1",
   mistral: "https://api.mistral.ai/v1",
+  /** NVIDIA API Catalog — same Chat Completions path as OpenAI */
+  nvidia: "https://integrate.api.nvidia.com/v1",
 };
 
 const MAX_KEY_LEN = 4096;
@@ -27,12 +31,13 @@ export function inferProviderFromKey(key) {
   if (k.startsWith("sk-ant-api") || k.startsWith("sk-ant-")) return "anthropic";
   if (k.startsWith("gsk_")) return "groq";
   if (k.startsWith("AIza")) return "google";
+  if (k.startsWith("nvapi-")) return "nvidia";
   if (k.startsWith("sk-")) return "openai";
   return null;
 }
 
 function isAllowedProvider(p) {
-  return ["openai", "anthropic", "google", "groq", "mistral"].includes(p);
+  return ["openai", "anthropic", "google", "groq", "mistral", "nvidia"].includes(p);
 }
 
 /**
@@ -84,29 +89,50 @@ export function resolveLlmFromRequest(req, env) {
     };
   }
 
+  const nvidiaKey = env.NVIDIA_API_KEY?.trim();
+  if (nvidiaKey) {
+    return {
+      ok: true,
+      provider: "nvidia",
+      apiKey: nvidiaKey,
+      model: userModel || env.NVIDIA_MODEL || DEFAULT_MODELS.nvidia,
+    };
+  }
+
   return {
     ok: false,
     error:
-      "No model API key: set OPENAI_API_KEY on the server, or use Studio → Bring your own API key (OpenAI, Claude, Gemini, Groq, Mistral).",
+      "No model API key: set OPENAI_API_KEY or NVIDIA_API_KEY on the server, or use Studio → Bring your own API key (OpenAI, Claude, Gemini, Groq, Mistral, NVIDIA NIM).",
   };
 }
 
 /**
- * @param {{ baseUrl: string, apiKey: string, model: string, messages: {role: string, content: string}[], signal?: AbortSignal }} opts
+ * @param {{ baseUrl: string, apiKey: string, model: string, messages: {role: string, content: string}[], signal?: AbortSignal, extraHeaders?: Record<string, string>, extraBody?: Record<string, unknown> }} opts
  */
-export async function* streamOpenAICompatible({ baseUrl, apiKey, model, messages, signal }) {
+export async function* streamOpenAICompatible({
+  baseUrl,
+  apiKey,
+  model,
+  messages,
+  signal,
+  extraHeaders = {},
+  extraBody = {},
+}) {
   const url = `${baseUrl.replace(/\/$/, "")}/chat/completions`;
   const r = await fetch(url, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
+      ...extraHeaders,
     },
     body: JSON.stringify({
       model,
       messages,
       stream: true,
       temperature: 0.35,
+      max_tokens: 8192,
+      ...extraBody,
     }),
     signal,
   });
@@ -284,21 +310,33 @@ export async function* streamLlmChat(opts) {
 
   const base = OPENAI_COMPAT_BASE[provider];
   if (!base) throw new Error(`Unsupported provider: ${provider}`);
-  yield* streamOpenAICompatible({ baseUrl: base, apiKey, model, messages: openaiMsgs, signal });
+  const nvidiaHeaders = provider === "nvidia" ? { Accept: "text/event-stream" } : {};
+  yield* streamOpenAICompatible({
+    baseUrl: base,
+    apiKey,
+    model,
+    messages: openaiMsgs,
+    signal,
+    extraHeaders: nvidiaHeaders,
+  });
 }
 
-async function completeOpenAICompatible({ baseUrl, apiKey, model, messages }) {
+async function completeOpenAICompatible({ baseUrl, apiKey, model, messages, extraHeaders = {}, extraBody = {} }) {
   const url = `${baseUrl.replace(/\/$/, "")}/chat/completions`;
   const r = await fetch(url, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
+      Accept: "application/json",
+      ...extraHeaders,
     },
     body: JSON.stringify({
       model,
       messages,
       temperature: 0.35,
+      max_tokens: 8192,
+      ...extraBody,
     }),
   });
   if (!r.ok) {

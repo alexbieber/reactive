@@ -72,6 +72,7 @@ app.get("/api/health", (_req, res) => {
     service: "reactive-api",
     version: "1.2.0",
     openaiModel: process.env.OPENAI_MODEL || "gpt-4o-mini",
+    nvidiaModel: process.env.NVIDIA_MODEL || "meta/llama-3.1-8b-instruct",
     capabilities: {
       codegen: true,
       preview: true,
@@ -79,7 +80,9 @@ app.get("/api/health", (_req, res) => {
       chat: true,
       chatStream: true,
       serverOpenAiKey: Boolean(process.env.OPENAI_API_KEY),
-      llmProviders: ["openai", "anthropic", "google", "groq", "mistral"],
+      /** OpenAI-compatible NVIDIA NIM / build API */
+      serverNvidiaKey: Boolean(process.env.NVIDIA_API_KEY),
+      llmProviders: ["openai", "anthropic", "google", "groq", "mistral", "nvidia"],
       githubRepoContext: true,
       tokenEstimates: true,
     },
@@ -296,7 +299,7 @@ app.post("/api/chat", async (req, res) => {
   if (!resolved.ok) {
     return res.status(501).json({
       error: resolved.error,
-      hint: "Add OPENAI_API_KEY on the API, or paste your key in Studio (Bring your own API key).",
+      hint: "Add OPENAI_API_KEY or NVIDIA_API_KEY on the API, or paste your key in Studio (Bring your own API key).",
     });
   }
 
@@ -340,7 +343,7 @@ app.post("/api/chat/stream", async (req, res) => {
   if (!resolved.ok) {
     return res.status(501).json({
       error: resolved.error,
-      hint: "Add OPENAI_API_KEY on the API, or paste your key in Studio (Bring your own API key).",
+      hint: "Add OPENAI_API_KEY or NVIDIA_API_KEY on the API, or paste your key in Studio (Bring your own API key).",
     });
   }
 

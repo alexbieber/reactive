@@ -33,7 +33,7 @@ REACTIVE is a **spec-first** product: you (or the AI copilot) produce a canonica
 | **Codegen** | Deterministic generation from the spec into the bundled Expo template (`npm run codegen`). |
 | **ZIP download** | Validated spec → API bundles a runnable Expo project (Review step). |
 | **Studio** | Multi-operator **chat** (Discovery → Architect → Craft → Build), **Apply** valid spec JSON from the model, **Expo web preview** in an iframe, **QR** for opening the preview URL on a phone. Deep-link: `?studio=1`. |
-| **LLM** | Server key and/or **BYOK** (OpenAI, Anthropic, Google, Groq, Mistral). Streaming (`/api/chat/stream`) or one-shot (`/api/chat`). |
+| **LLM** | Server key and/or **BYOK** (OpenAI, Anthropic, Google, Groq, Mistral, **NVIDIA NIM** — `https://integrate.api.nvidia.com/v1`, keys `nvapi-…`). Streaming (`/api/chat/stream`) or one-shot (`/api/chat`). |
 | **GitHub context** | Optional: load public repo metadata (README, `package.json`, Expo config, tsconfig, EAS, Babel/Metro) into the copilot—**hints only**; codegen stays template-locked. |
 | **Token estimates** | Per-request **input/output** token counts (gpt-tokenizer / GPT-4o-style) on chat and preview responses; session totals in the UI. |
 | **Quality gates** | Spec validation, optional artifact checks, CI (build web, validate examples, codegen smoke). |
@@ -113,7 +113,7 @@ Commit updated files under `apps/web/public/` after regenerating.
 ## Studio (copilot + preview)
 
 1. Open Studio (`?studio=1` or from the UI).
-2. Set **`OPENAI_API_KEY`** on the API **or** use **Bring your own API key** (stored in the browser; forwarded through your API to the provider).
+2. Set **`OPENAI_API_KEY`** or **`NVIDIA_API_KEY`** on the API **or** use **Bring your own API key** (stored in the browser; forwarded through your API to the provider). NVIDIA uses OpenAI-compatible Chat Completions at `integrate.api.nvidia.com`; keys start with `nvapi-`.
 3. Chat follows the loop: **chat → valid App Spec JSON → Apply → Build preview**.
 4. **Token consumption** shows **Input** / **Output** for the last reply and session totals (estimates via `gpt-tokenizer`).
 5. Optional **GitHub context**: presets or manual `owner/repo` (+ monorepo **App path**). Set **`GITHUB_TOKEN`** (or `GH_TOKEN`) on the API for higher GitHub API rate limits.
@@ -124,7 +124,7 @@ Commit updated files under `apps/web/public/` after regenerating.
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| `GET` | `/api/health` | Service info, default model, capabilities (`codegen`, `preview`, `chat`, `chatStream`, `githubRepoContext`, `tokenEstimates`, `serverOpenAiKey`, `llmProviders`). |
+| `GET` | `/api/health` | Service info, `openaiModel`, `nvidiaModel`, capabilities (`codegen`, `preview`, `chat`, `chatStream`, `githubRepoContext`, `tokenEstimates`, `serverOpenAiKey`, `serverNvidiaKey`, `llmProviders`). |
 | `POST` | `/api/validate` | Body: App Spec JSON → validate (AJV / schema pipeline). |
 | `POST` | `/api/generate` | Body: App Spec → **ZIP** of generated Expo project. |
 | `POST` | `/api/preview-build` | Body: App Spec → build Expo web export → `{ previewId, entry, tokenUsage }` (spec JSON size; no LLM). |
@@ -141,8 +141,10 @@ Request bodies are JSON (large specs allowed; limit is several MB).
 
 | Variable | Role |
 |----------|------|
-| `OPENAI_API_KEY` | Server-side chat when user does not BYOK. |
+| `OPENAI_API_KEY` | Server-side chat when user does not BYOK (takes precedence over `NVIDIA_API_KEY` if both are set). |
 | `OPENAI_MODEL` | Default OpenAI model (e.g. `gpt-4o-mini`). |
+| `NVIDIA_API_KEY` | Optional server-side chat using [NVIDIA API](https://integrate.api.nvidia.com) OpenAI-compatible Chat Completions (`nvapi-…` keys). Ignored if `OPENAI_API_KEY` is set. |
+| `NVIDIA_MODEL` | Default model for server NVIDIA key (e.g. `meta/llama-3.1-8b-instruct`, or `google/gemma-2-9b-it` — use IDs from the NVIDIA catalog). |
 | `GITHUB_TOKEN` / `GH_TOKEN` | Optional; raises GitHub API rate limits for `/api/github/context`. |
 | `CORS_ORIGIN` | Comma-separated allowed origins (**set in production**). |
 | `TRUST_PROXY` | `1` if behind a reverse proxy using `X-Forwarded-*`. |

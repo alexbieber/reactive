@@ -1,6 +1,6 @@
 /** Client-side LLM / BYOK helpers — keys stay in session unless user opts into persistence */
 
-export type LlmProviderId = "openai" | "anthropic" | "google" | "groq" | "mistral";
+export type LlmProviderId = "openai" | "anthropic" | "google" | "groq" | "mistral" | "nvidia";
 
 export type StudioLlmSettings = {
   provider: LlmProviderId;
@@ -17,6 +17,11 @@ export const LLM_PROVIDERS: { id: LlmProviderId; label: string; hint: string }[]
   { id: "google", label: "Google (Gemini)", hint: "Google AI Studio / Vertex-style — AIza…" },
   { id: "groq", label: "Groq", hint: "OpenAI-compatible — gsk_…" },
   { id: "mistral", label: "Mistral", hint: "OpenAI-compatible — console.mistral.ai" },
+  {
+    id: "nvidia",
+    label: "NVIDIA NIM",
+    hint: "integrate.api.nvidia.com — nvapi-… (free tier keys from NVIDIA account)",
+  },
 ];
 
 const SESSION_KEY = "studio-llm-v1";
@@ -34,6 +39,7 @@ export function inferProviderFromKey(key: string): LlmProviderId | null {
   if (k.startsWith("sk-ant-api") || k.startsWith("sk-ant-")) return "anthropic";
   if (k.startsWith("gsk_")) return "groq";
   if (k.startsWith("AIza")) return "google";
+  if (k.startsWith("nvapi-")) return "nvidia";
   if (k.startsWith("sk-")) return "openai";
   return null;
 }

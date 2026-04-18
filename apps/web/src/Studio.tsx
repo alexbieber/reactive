@@ -17,6 +17,7 @@ import {
 } from "./studioLlm";
 import { GITHUB_CONTEXT_PRESETS } from "./studioGithubPresets";
 import { stampTimes, validateSpec } from "./validateSpec";
+import { getErrorMessageFromResponse } from "./apiFetchErrors";
 import QRCode from "qrcode";
 
 const apiBase = import.meta.env.VITE_API_BASE ?? "";
@@ -195,7 +196,7 @@ export default function Studio({ initialSpec, onBack }: Props) {
       content: `[Discovery]
 **Recon** — What problem, who uses it daily, and what “done” looks like. I’ll ask until we can draft a **schema-valid App Spec** — then you **Apply** and **Build preview** (real Expo web export).
 
-**Keys:** \`OPENAI_API_KEY\` on the API, or expand **Bring your own API key** below. Paste a bare key in the box once to save it for this browser.`,
+**Keys:** \`OPENAI_API_KEY\` or \`NVIDIA_API_KEY\` on the API, or expand **Bring your own API key** below. Paste a bare key in the box once to save it for this browser.`,
     },
   ]);
   const [input, setInput] = useState("");
@@ -211,7 +212,9 @@ export default function Studio({ initialSpec, onBack }: Props) {
   const [apiCaps, setApiCaps] = useState<{
     chat: boolean;
     openaiModel?: string;
+    nvidiaModel?: string;
     serverOpenAiKey?: boolean;
+    serverNvidiaKey?: boolean;
   } | null>(null);
   const [llmSettings, setLlmSettings] = useState<StudioLlmSettings>(() => loadStudioLlm());
   const [githubCtx, setGithubCtx] = useState<GithubContextPayload | null>(null);
@@ -252,14 +255,17 @@ export default function Studio({ initialSpec, onBack }: Props) {
       try {
         const r = await fetch(`${apiBase}/api/health`);
         const j = (await r.json()) as {
-          capabilities?: { chat?: boolean; serverOpenAiKey?: boolean };
+          capabilities?: { chat?: boolean; serverOpenAiKey?: boolean; serverNvidiaKey?: boolean };
           openaiModel?: string;
+          nvidiaModel?: string;
         };
         if (!cancelled)
           setApiCaps({
             chat: Boolean(j.capabilities?.chat),
             openaiModel: typeof j.openaiModel === "string" ? j.openaiModel : undefined,
+            nvidiaModel: typeof j.nvidiaModel === "string" ? j.nvidiaModel : undefined,
             serverOpenAiKey: Boolean(j.capabilities?.serverOpenAiKey),
+            serverNvidiaKey: Boolean(j.capabilities?.serverNvidiaKey),
           });
       } catch {
         if (!cancelled) setApiCaps({ chat: false });
@@ -390,6 +396,9 @@ export default function Studio({ initialSpec, onBack }: Props) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
+    if (!r.ok) {
+      throw new Error(await getErrorMessageFromResponse(r, "POST /api/chat"));
+    }
     const j = (await r.json().catch(() => ({}))) as {
       reply?: string;
       proposedSpec?: AppSpec;
@@ -398,11 +407,6 @@ export default function Studio({ initialSpec, onBack }: Props) {
       error?: string;
       hint?: string;
     };
-    if (!r.ok) {
-      throw new Error(
-        typeof j.error === "string" ? j.error + (j.hint ? ` — ${j.hint}` : "") : r.statusText
-      );
-    }
     const reply = typeof j.reply === "string" ? j.reply : "";
     if (j.tokenUsage && typeof j.tokenUsage.totalTokens === "number") {
       recordChatUsage(j.tokenUsage);
@@ -458,7 +462,8 @@ export default function Studio({ initialSpec, onBack }: Props) {
       if (r.status === 501) {
         const j = (await r.json().catch(() => ({}))) as { error?: string; hint?: string };
         setError(
-          [j.error, j.hint].filter(Boolean).join(" — ") || "OPENAI_API_KEY not set on the API server."
+          [j.error, j.hint].filter(Boolean).join(" — ") ||
+            "No LLM key: set OPENAI_API_KEY or NVIDIA_API_KEY on the API, or add BYOK below."
         );
         return;
       }
@@ -540,13 +545,10 @@ export default function Studio({ initialSpec, onBack }: Props) {
       return;
     }
 
-    if (
-      apiCaps &&
-      apiCaps.serverOpenAiKey === false &&
-      !llmSettings.apiKey.trim()
-    ) {
+    const serverHasLlmKey = Boolean(apiCaps?.serverOpenAiKey || apiCaps?.serverNvidiaKey);
+    if (apiCaps && !serverHasLlmKey && !llmSettings.apiKey.trim()) {
       setError(
-        "Add your API key under “Bring your own API key”, or set OPENAI_API_KEY on the API server."
+        'Add your API key under “Bring your own API key”, or set OPENAI_API_KEY or NVIDIA_API_KEY on the API server.'
       );
       return;
     }
@@ -620,13 +622,13 @@ export default function Studio({ initialSpec, onBack }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(finalSpec),
       });
+      if (!r.ok) throw new Error(await getErrorMessageFromResponse(r, "POST /api/preview-build"));
       const j = (await r.json().catch(() => ({}))) as {
         previewId?: string;
         entry?: string;
         error?: string;
         tokenUsage?: { specJsonTokens?: number };
       };
-      if (!r.ok) throw new Error(typeof j.error === "string" ? j.error : r.statusText);
       const id = j.previewId;
       const entry = j.entry ?? "index.html";
       if (!id) throw new Error("No previewId from server");
@@ -685,7 +687,7 @@ export default function Studio({ initialSpec, onBack }: Props) {
 
       <p className="tagline studio-lead">
         <strong>Loop:</strong> copilot chat → valid <strong>App Spec</strong> → <strong>Apply</strong> → <strong>Build preview</strong> → ZIP from the wizard. Keys:{" "}
-        <code className="inline-code">OPENAI_API_KEY</code> on the API or BYOK below.
+        <code className="inline-code">OPENAI_API_KEY</code> or <code className="inline-code">NVIDIA_API_KEY</code> on the API or BYOK below.
       </p>
 
       <div className="studio-status-strip" aria-label="What blocks the loop">
@@ -695,25 +697,34 @@ export default function Studio({ initialSpec, onBack }: Props) {
         <span className={`studio-pill ${specCheck.ok ? "studio-pill--ok" : "studio-pill--warn"}`} title="Current App Spec must validate before a reliable preview">
           Spec {specCheck.ok ? "valid" : "needs fix"}
         </span>
-        {apiCaps?.serverOpenAiKey ? (
+        {apiCaps?.serverOpenAiKey || apiCaps?.serverNvidiaKey ? (
           <>
             <span className="studio-pill studio-pill--ok" title="Server can call the model without BYOK">
               Server key
             </span>
-            {apiCaps.openaiModel && (
-              <span className="studio-pill studio-pill--muted" title="Default model when using the server key (OPENAI_MODEL)">
+            {apiCaps.serverOpenAiKey && apiCaps.openaiModel && (
+              <span className="studio-pill studio-pill--muted" title="Default model when using the server OpenAI key (OPENAI_MODEL)">
                 {apiCaps.openaiModel}
+              </span>
+            )}
+            {apiCaps.serverNvidiaKey && apiCaps.nvidiaModel && (
+              <span className="studio-pill studio-pill--muted" title="Default model when using the server NVIDIA key (NVIDIA_MODEL)">
+                {apiCaps.nvidiaModel}
               </span>
             )}
           </>
         ) : (
-          <span className="studio-pill studio-pill--muted" title="Set OPENAI_API_KEY on the API or use BYOK">
+          <span className="studio-pill studio-pill--muted" title="Set OPENAI_API_KEY or NVIDIA_API_KEY on the API or use BYOK">
             No server key
           </span>
         )}
         <span
           className={`studio-pill ${llmSettings.apiKey.trim() ? "studio-pill--ok" : "studio-pill--muted"}`}
-          title={apiCaps?.serverOpenAiKey ? "Optional override — browser key is used when set" : "Required for chat unless the API has a server key"}
+          title={
+            apiCaps?.serverOpenAiKey || apiCaps?.serverNvidiaKey
+              ? "Optional override — browser key is used when set"
+              : "Required for chat unless the API has a server key"
+          }
         >
           {llmSettings.apiKey.trim() ? "BYOK set" : "No BYOK"}
         </span>
@@ -809,7 +820,7 @@ export default function Studio({ initialSpec, onBack }: Props) {
       )}
 
       <details className="studio-byok">
-        <summary>Bring your own API key (OpenAI, Claude, Gemini, Groq, Mistral)</summary>
+        <summary>Bring your own API key (OpenAI, Claude, Gemini, Groq, Mistral, NVIDIA NIM)</summary>
         <div className="studio-byok-body">
           <p className="studio-byok-lead">
             Stored in this browser (session by default). Requests go to <strong>your</strong> provider through this app’s
@@ -847,7 +858,7 @@ export default function Studio({ initialSpec, onBack }: Props) {
                   const p = inferProviderFromKey(k);
                   if (p) setLlmSettings((s) => ({ ...s, provider: p }));
                 }}
-                placeholder="sk-… · sk-ant-… · AIza… · gsk_…"
+                placeholder="sk-… · sk-ant-… · AIza… · gsk_… · nvapi-…"
               />
             </label>
             <label className="studio-byok-field studio-byok-span2">
@@ -856,7 +867,7 @@ export default function Studio({ initialSpec, onBack }: Props) {
                 type="text"
                 value={llmSettings.model}
                 onChange={(e) => setLlmSettings((s) => ({ ...s, model: e.target.value }))}
-                placeholder="Blank = provider default (e.g. gpt-4o-mini, claude-sonnet-4-20250514, gemini-2.0-flash)"
+                placeholder="Blank = provider default (e.g. gpt-4o-mini, google/gemma-2-9b-it on NVIDIA, llama-3.3-70b on Groq)"
               />
             </label>
             <label className="studio-byok-check studio-byok-span2">

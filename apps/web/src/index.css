@@ -181,6 +181,7 @@ textarea {
   z-index: 50;
   margin: -2rem -1.25rem 2rem;
   padding: 0;
+  overflow: visible;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(8, 8, 12, 0.88);
   backdrop-filter: blur(18px);
@@ -193,9 +194,25 @@ textarea {
   padding: 1rem 1.25rem 1rem;
 }
 
-.landing-logo-center .brand-logo--landing {
+/* Hero: REACTIVE mark + Flutter vs RN bout (RN wins) */
+.landing-logo-scene {
+  position: relative;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  width: 100%;
+  min-height: clamp(128px, 32vw, 188px);
+  container-type: inline-size;
+}
+
+.landing-logo-scene .brand-logo--landing {
+  position: relative;
+  z-index: 4;
+  display: block;
+  width: max-content;
+  margin: 0;
 }
 
 .brand-logo--landing .brand-logo-img--landing {
@@ -204,9 +221,1191 @@ textarea {
   height: auto;
   min-height: 56px;
   max-height: 120px;
-  margin: 0 auto;
+  margin: 0;
   object-fit: contain;
   filter: drop-shadow(0 10px 36px rgba(0, 0, 0, 0.55));
+  transform-origin: 50% 85%;
+  animation: logoHeroIdle 7s ease-in-out infinite;
+}
+
+@keyframes logoHeroIdle {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -4px, 0);
+  }
+}
+
+/* —— Flutter vs React Native (stylized tactical exchange) —— */
+.platform-logo-fight {
+  --plf-dur: 60s;
+  width: 100%;
+  max-width: min(100%, 340px);
+  padding: 0.1rem 0 0.35rem;
+  pointer-events: none;
+  user-select: none;
+}
+
+.platform-logo-fight__tag {
+  margin: 0 0 0.2rem;
+  font-size: 0.58rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.platform-logo-fight__track {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.25rem;
+  min-height: 100px;
+  padding: 0 0.25rem;
+}
+
+.platform-logo-fight__fx {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+}
+
+.platform-logo-fight__side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  width: 42%;
+  max-width: 130px;
+}
+
+.platform-logo-fight__label {
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.platform-logo-fight__svg {
+  display: block;
+  width: min(52px, 13vw);
+  height: auto;
+  aspect-ratio: 1;
+}
+
+.platform-logo-fight__side--flutter {
+  position: relative;
+  z-index: 2;
+  animation: platformFlutterToon var(--plf-dur) cubic-bezier(0.45, 0.02, 0.2, 1) infinite;
+  transform-origin: 60% 80%;
+}
+
+.platform-logo-fight__side--rn {
+  position: relative;
+  z-index: 2;
+  animation: platformRnToon var(--plf-dur) cubic-bezier(0.45, 0.02, 0.2, 1) infinite;
+  transform-origin: 40% 80%;
+}
+
+.platform-logo-fight__crown {
+  position: absolute;
+  top: -0.15rem;
+  right: 0;
+  font-size: 0.85rem;
+  line-height: 1;
+  opacity: 0;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+  animation: platformCrownToon var(--plf-dur) cubic-bezier(0.45, 0.02, 0.2, 1) infinite;
+}
+
+.platform-logo-fight__burst {
+  position: absolute;
+  left: 50%;
+  top: 52%;
+  z-index: 3;
+  width: 28px;
+  height: 28px;
+  margin-left: -14px;
+  margin-top: -14px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 220, 120, 0.55) 0%, transparent 70%);
+  opacity: 0;
+  pointer-events: none;
+  animation: platformFightBurstToon var(--plf-dur) cubic-bezier(0.45, 0.02, 0.2, 1) infinite;
+}
+
+.platform-logo-fight__burst--spark {
+  width: 48px;
+  height: 48px;
+  margin-left: -24px;
+  margin-top: -24px;
+  background: radial-gradient(circle, rgba(255, 140, 60, 0.45) 0%, rgba(255, 80, 40, 0.2) 35%, transparent 65%);
+  animation: platformFightSparkToon var(--plf-dur) cubic-bezier(0.45, 0.02, 0.2, 1) infinite;
+}
+
+/* Pistol SVG + muzzle flashes (brief, warm core — not cartoon starbursts) */
+.platform-logo-fight__gun {
+  position: absolute;
+  bottom: 10px;
+  width: 50px;
+  height: auto;
+  line-height: 0;
+  background: none;
+  box-shadow: none;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+}
+
+.platform-logo-fight__pistol-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.platform-logo-fight__gun--flutter {
+  left: calc(38% - 20px);
+  transform: rotate(-4deg);
+  transform-origin: 70% 70%;
+  animation: platformGunFlutterToon var(--plf-dur) cubic-bezier(0.45, 0.02, 0.2, 1) infinite;
+}
+
+.platform-logo-fight__gun--rn {
+  right: calc(38% - 20px);
+  transform: rotate(4deg) scaleX(-1);
+  transform-origin: 70% 70%;
+  animation: platformGunRnToon var(--plf-dur) cubic-bezier(0.45, 0.02, 0.2, 1) infinite;
+}
+
+.platform-logo-fight__muzzle {
+  position: absolute;
+  bottom: 24px;
+  width: 11px;
+  height: 11px;
+  margin-left: -5px;
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+
+.platform-logo-fight__muzzle--flutter {
+  left: calc(38% + 28px);
+  background: radial-gradient(
+    circle,
+    #fff 0%,
+    #ffcc80 18%,
+    rgba(255, 120, 40, 0.55) 42%,
+    rgba(40, 20, 10, 0.25) 65%,
+    transparent 78%
+  );
+  animation: platformMuzzleFlutterToon var(--plf-dur) linear infinite;
+}
+
+.platform-logo-fight__muzzle--flutter-b {
+  left: calc(38% + 26px);
+  bottom: 22px;
+  background: radial-gradient(circle, #fff 0%, #ffb74d 22%, rgba(180, 60, 20, 0.4) 55%, transparent 75%);
+  animation: platformMuzzleFlutterBToon var(--plf-dur) linear infinite;
+}
+
+.platform-logo-fight__muzzle--rn {
+  right: calc(38% + 28px);
+  left: auto;
+  margin-left: 0;
+  margin-right: -5px;
+  background: radial-gradient(
+    circle,
+    #fff 0%,
+    #b3e5fc 20%,
+    rgba(30, 136, 180, 0.45) 48%,
+    rgba(10, 30, 40, 0.3) 68%,
+    transparent 80%
+  );
+  animation: platformMuzzleRnToon var(--plf-dur) linear infinite;
+}
+
+.platform-logo-fight__muzzle--rn-volley2 {
+  right: calc(38% + 24px);
+  left: auto;
+  bottom: 23px;
+  margin-left: 0;
+  margin-right: -5px;
+  background: radial-gradient(circle, #fff 0%, #81d4fa 25%, rgba(8, 90, 120, 0.5) 58%, transparent 78%);
+  animation: platformMuzzleRnVolley2Toon var(--plf-dur) linear infinite;
+}
+
+.platform-logo-fight__muzzle--rn-b {
+  right: calc(38% + 22px);
+  left: auto;
+  bottom: 21px;
+  margin-right: -5px;
+  background: radial-gradient(circle, #e8f4ff 0%, #4fc3f7 28%, rgba(5, 60, 80, 0.45) 62%, transparent 80%);
+  animation: platformMuzzleRnBToon var(--plf-dur) linear infinite;
+}
+
+.platform-logo-fight__bullet {
+  position: absolute;
+  top: 52%;
+  height: 2px;
+  margin-top: -1px;
+  border-radius: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.platform-logo-fight__bullet--fl {
+  left: 44%;
+  width: 18px;
+  background: linear-gradient(90deg, #e8cba8, #b87333, #6d4c32);
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.45);
+  animation: platformBulletFlToon var(--plf-dur) linear infinite;
+}
+
+.platform-logo-fight__bullet--fl-b {
+  left: 42%;
+  width: 16px;
+  top: 49%;
+  background: linear-gradient(90deg, #f0e0c8, #c67f35, #5c3d28);
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.4);
+  animation: platformBulletFlBToon var(--plf-dur) linear infinite;
+}
+
+.platform-logo-fight__bullet--rn {
+  right: 44%;
+  left: auto;
+  width: 18px;
+  background: linear-gradient(270deg, #d8ecf2, #5a9eb8, #2a5566);
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.4);
+  animation: platformBulletRnToon var(--plf-dur) linear infinite;
+}
+
+.platform-logo-fight__bullet--rn2 {
+  right: 44%;
+  left: auto;
+  width: 20px;
+  background: linear-gradient(270deg, #e8f4f8, #4a8aa4, #1e3844);
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.45);
+  animation: platformBulletRn2Toon var(--plf-dur) linear infinite;
+}
+
+.platform-logo-fight__bullet--rn-c {
+  right: 43%;
+  left: auto;
+  width: 17px;
+  top: 55%;
+  background: linear-gradient(270deg, #f5fafc, #5a9eb8, #203844);
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.4);
+  animation: platformBulletRnCToon var(--plf-dur) linear infinite;
+}
+
+.platform-logo-fight__bullet--tracer {
+  left: 48%;
+  width: 36%;
+  max-width: 120px;
+  height: 1px;
+  margin-left: -18%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 210, 150, 0.12) 25%,
+    rgba(255, 230, 200, 0.28) 50%,
+    rgba(120, 180, 200, 0.22) 75%,
+    transparent
+  );
+  animation: platformTracerToon var(--plf-dur) linear infinite;
+}
+
+/* Snappy pistol recoil (small arc, ~2°–7°) */
+@keyframes platformGunFlutterToon {
+  0%,
+  3% {
+    transform: rotate(-4deg) translate3d(0, 0, 0);
+  }
+  4%,
+  4.6% {
+    transform: rotate(-7.5deg) translate3d(1.5px, -1px, 0);
+  }
+  5.5%,
+  10.5% {
+    transform: rotate(-4deg) translate3d(0, 0, 0);
+  }
+  11%,
+  11.6% {
+    transform: rotate(-8deg) translate3d(1.5px, -1px, 0);
+  }
+  22%,
+  22.7% {
+    transform: rotate(-7deg) translate3d(1px, 0, 0);
+  }
+  34%,
+  34.6% {
+    transform: rotate(-8.5deg) translate3d(1.5px, -1px, 0);
+  }
+  46%,
+  46.6% {
+    transform: rotate(-6deg) translate3d(1px, 0, 0);
+  }
+  58%,
+  58.6% {
+    transform: rotate(-7.5deg) translate3d(1.5px, -0.5px, 0);
+  }
+  68%,
+  69% {
+    transform: rotate(-5.5deg) translate3d(0.5px, 0, 0);
+  }
+  100% {
+    transform: rotate(-4deg) translate3d(0, 0, 0);
+  }
+}
+
+@keyframes platformGunRnToon {
+  0%,
+  3% {
+    transform: rotate(4deg) scaleX(-1) translate3d(0, 0, 0);
+  }
+  4%,
+  4.7% {
+    transform: rotate(8deg) scaleX(-1) translate3d(-1.5px, -1px, 0);
+  }
+  8%,
+  8.8% {
+    transform: rotate(9.5deg) scaleX(-1) translate3d(-2px, -1px, 0);
+  }
+  14%,
+  14.7% {
+    transform: rotate(8deg) scaleX(-1) translate3d(-1.5px, -0.5px, 0);
+  }
+  26%,
+  26.8% {
+    transform: rotate(9deg) scaleX(-1) translate3d(-2px, -1px, 0);
+  }
+  38%,
+  38.7% {
+    transform: rotate(8.5deg) scaleX(-1) translate3d(-1.5px, -0.5px, 0);
+  }
+  50%,
+  50.8% {
+    transform: rotate(9.5deg) scaleX(-1) translate3d(-2px, -1px, 0);
+  }
+  63%,
+  63.8% {
+    transform: rotate(8deg) scaleX(-1) translate3d(-1.5px, 0, 0);
+  }
+  72%,
+  73% {
+    transform: rotate(6.5deg) scaleX(-1) translate3d(-1px, 0, 0);
+  }
+  100% {
+    transform: rotate(4deg) scaleX(-1) translate3d(0, 0, 0);
+  }
+}
+
+/* Muzzle: sub-100ms peaks (~0.12–0.2% of 60s), capped brightness — not lingering blooms */
+@keyframes platformMuzzleFlutterToon {
+  0%,
+  3.92% {
+    opacity: 0;
+    transform: scale(0.42);
+  }
+  4% {
+    opacity: 0.92;
+    transform: scale(1.04);
+  }
+  4.14% {
+    opacity: 0;
+    transform: scale(0.45);
+  }
+  10.92% {
+    opacity: 0;
+    transform: scale(0.42);
+  }
+  11% {
+    opacity: 0.9;
+    transform: scale(1.02);
+  }
+  11.14% {
+    opacity: 0;
+    transform: scale(0.45);
+  }
+  21.92% {
+    opacity: 0;
+    transform: scale(0.42);
+  }
+  22% {
+    opacity: 0.91;
+    transform: scale(1.05);
+  }
+  22.14% {
+    opacity: 0;
+    transform: scale(0.45);
+  }
+  33.92% {
+    opacity: 0;
+    transform: scale(0.42);
+  }
+  34% {
+    opacity: 0.9;
+    transform: scale(1.03);
+  }
+  34.14% {
+    opacity: 0;
+    transform: scale(0.45);
+  }
+  45.92% {
+    opacity: 0;
+    transform: scale(0.42);
+  }
+  46% {
+    opacity: 0.91;
+    transform: scale(1.04);
+  }
+  46.14% {
+    opacity: 0;
+    transform: scale(0.45);
+  }
+  57.92% {
+    opacity: 0;
+    transform: scale(0.42);
+  }
+  58% {
+    opacity: 0.93;
+    transform: scale(1.05);
+  }
+  58.14% {
+    opacity: 0;
+    transform: scale(0.45);
+  }
+  67.92% {
+    opacity: 0;
+    transform: scale(0.42);
+  }
+  68% {
+    opacity: 0.88;
+    transform: scale(1.02);
+  }
+  68.14% {
+    opacity: 0;
+    transform: scale(0.45);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.42);
+  }
+}
+
+@keyframes platformMuzzleFlutterBToon {
+  0%,
+  23.92% {
+    opacity: 0;
+    transform: scale(0.42);
+  }
+  24% {
+    opacity: 0.88;
+    transform: scale(1.03);
+  }
+  24.14% {
+    opacity: 0;
+    transform: scale(0.45);
+  }
+  43.92% {
+    opacity: 0;
+    transform: scale(0.42);
+  }
+  44% {
+    opacity: 0.9;
+    transform: scale(1.04);
+  }
+  44.14% {
+    opacity: 0;
+    transform: scale(0.45);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.42);
+  }
+}
+
+@keyframes platformMuzzleRnToon {
+  0%,
+  4.12% {
+    opacity: 0;
+    transform: scale(0.42);
+  }
+  4.2% {
+    opacity: 0.93;
+    transform: scale(1.05);
+  }
+  4.34% {
+    opacity: 0;
+    transform: scale(0.45);
+  }
+  8.12% {
+    opacity: 0;
+    transform: scale(0.42);
+  }
+  8.2% {
+    opacity: 0.91;
+    transform: scale(1.04);
+  }
+  8.34% {
+    opacity: 0;
+    transform: scale(0.45);
+  }
+  13.92% {
+    opacity: 0;
+    transform: scale(0.42);
+  }
+  14% {
+    opacity: 0.92;
+    transform: scale(1.05);
+  }
+  14.14% {
+    opacity: 0;
+    transform: scale(0.45);
+  }
+  25.92% {
+    opacity: 0;
+    transform: scale(0.42);
+  }
+  26% {
+    opacity: 0.9;
+    transform: scale(1.03);
+  }
+  26.14% {
+    opacity: 0;
+    transform: scale(0.45);
+  }
+  37.92% {
+    opacity: 0;
+    transform: scale(0.42);
+  }
+  38% {
+    opacity: 0.91;
+    transform: scale(1.04);
+  }
+  38.14% {
+    opacity: 0;
+    transform: scale(0.45);
+  }
+  49.92% {
+    opacity: 0;
+    transform: scale(0.42);
+  }
+  50% {
+    opacity: 0.92;
+    transform: scale(1.05);
+  }
+  50.14% {
+    opacity: 0;
+    transform: scale(0.45);
+  }
+  62.92% {
+    opacity: 0;
+    transform: scale(0.42);
+  }
+  63% {
+    opacity: 0.9;
+    transform: scale(1.03);
+  }
+  63.14% {
+    opacity: 0;
+    transform: scale(0.45);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.42);
+  }
+}
+
+@keyframes platformMuzzleRnVolley2Toon {
+  0%,
+  27.92% {
+    opacity: 0;
+    transform: scale(0.42);
+  }
+  28% {
+    opacity: 0.91;
+    transform: scale(1.04);
+  }
+  28.14% {
+    opacity: 0;
+    transform: scale(0.45);
+  }
+  28.5% {
+    opacity: 0.88;
+    transform: scale(1.02);
+  }
+  28.64% {
+    opacity: 0;
+    transform: scale(0.45);
+  }
+  47.92% {
+    opacity: 0;
+    transform: scale(0.42);
+  }
+  48% {
+    opacity: 0.92;
+    transform: scale(1.05);
+  }
+  48.14% {
+    opacity: 0;
+    transform: scale(0.45);
+  }
+  48.45% {
+    opacity: 0.87;
+    transform: scale(1.02);
+  }
+  48.59% {
+    opacity: 0;
+    transform: scale(0.45);
+  }
+  62.92% {
+    opacity: 0;
+    transform: scale(0.42);
+  }
+  63% {
+    opacity: 0.9;
+    transform: scale(1.03);
+  }
+  63.14% {
+    opacity: 0;
+    transform: scale(0.45);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.42);
+  }
+}
+
+@keyframes platformMuzzleRnBToon {
+  0%,
+  52.92% {
+    opacity: 0;
+    transform: scale(0.42);
+  }
+  53% {
+    opacity: 0.93;
+    transform: scale(1.05);
+  }
+  53.14% {
+    opacity: 0;
+    transform: scale(0.45);
+  }
+  53.42% {
+    opacity: 0.86;
+    transform: scale(1.02);
+  }
+  53.56% {
+    opacity: 0;
+    transform: scale(0.45);
+  }
+  70.92% {
+    opacity: 0;
+    transform: scale(0.42);
+  }
+  71% {
+    opacity: 0.91;
+    transform: scale(1.04);
+  }
+  71.14% {
+    opacity: 0;
+    transform: scale(0.45);
+  }
+  71.38% {
+    opacity: 0.85;
+    transform: scale(1.01);
+  }
+  71.52% {
+    opacity: 0;
+    transform: scale(0.45);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.42);
+  }
+}
+
+@keyframes platformBulletFlToon {
+  0%,
+  3.4% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0) scaleX(0.35);
+  }
+  3.8%,
+  6.2% {
+    opacity: 1;
+    transform: translate3d(95px, -2px, 0) scaleX(1.35);
+  }
+  7%,
+  21.4% {
+    opacity: 0;
+    transform: translate3d(100px, -2px, 0) scaleX(0.25);
+  }
+  22%,
+  24.5% {
+    opacity: 1;
+    transform: translate3d(88px, 2px, 0) scaleX(1.3);
+  }
+  25.5%,
+  41.4% {
+    opacity: 0;
+    transform: translate3d(95px, 0, 0) scaleX(0.25);
+  }
+  42%,
+  44.8% {
+    opacity: 1;
+    transform: translate3d(92px, -3px, 0) scaleX(1.4);
+  }
+  46%,
+  57.4% {
+    opacity: 0;
+    transform: translate3d(98px, 0, 0) scaleX(0.25);
+  }
+  58%,
+  60.5% {
+    opacity: 1;
+    transform: translate3d(90px, 1px, 0) scaleX(1.25);
+  }
+  61.5%,
+  100% {
+    opacity: 0;
+    transform: translate3d(95px, 0, 0) scaleX(0.2);
+  }
+}
+
+@keyframes platformBulletFlBToon {
+  0%,
+  43% {
+    opacity: 0;
+    transform: translate3d(0, 4px, 0) scaleX(0.3);
+  }
+  44%,
+  46.5% {
+    opacity: 1;
+    transform: translate3d(85px, 0, 0) scaleX(1.3);
+  }
+  48%,
+  100% {
+    opacity: 0;
+    transform: translate3d(90px, 0, 0) scaleX(0.2);
+  }
+}
+
+@keyframes platformBulletRnToon {
+  0%,
+  4% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0) scaleX(0.35);
+  }
+  4.5%,
+  6.8% {
+    opacity: 1;
+    transform: translate3d(-92px, 1px, 0) scaleX(1.35);
+  }
+  7.5%,
+  25.4% {
+    opacity: 0;
+    transform: translate3d(-98px, 0, 0) scaleX(0.25);
+  }
+  26%,
+  28.5% {
+    opacity: 1;
+    transform: translate3d(-88px, -2px, 0) scaleX(1.4);
+  }
+  29.5%,
+  49.4% {
+    opacity: 0;
+    transform: translate3d(-95px, 0, 0) scaleX(0.25);
+  }
+  50%,
+  52.8% {
+    opacity: 1;
+    transform: translate3d(-96px, 2px, 0) scaleX(1.35);
+  }
+  54%,
+  100% {
+    opacity: 0;
+    transform: translate3d(-100px, 0, 0) scaleX(0.2);
+  }
+}
+
+@keyframes platformBulletRn2Toon {
+  0%,
+  27.4% {
+    opacity: 0;
+    transform: translate3d(0, 3px, 0) scaleX(0.3);
+  }
+  28%,
+  31% {
+    opacity: 1;
+    transform: translate3d(-86px, -5px, 0) scaleX(1.55);
+  }
+  32%,
+  61.4% {
+    opacity: 0;
+    transform: translate3d(-90px, 0, 0) scaleX(0.2);
+  }
+  62%,
+  65% {
+    opacity: 1;
+    transform: translate3d(-82px, 3px, 0) scaleX(1.45);
+  }
+  66.5%,
+  100% {
+    opacity: 0;
+    transform: translate3d(-88px, 0, 0) scaleX(0.2);
+  }
+}
+
+@keyframes platformBulletRnCToon {
+  0%,
+  51.4% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0) scaleX(0.25);
+  }
+  52%,
+  55.5% {
+    opacity: 1;
+    transform: translate3d(-100px, -4px, 0) scaleX(1.5);
+  }
+  57%,
+  100% {
+    opacity: 0;
+    transform: translate3d(-105px, 0, 0) scaleX(0.2);
+  }
+}
+
+@keyframes platformTracerToon {
+  0%,
+  3% {
+    opacity: 0;
+  }
+  4%,
+  18% {
+    opacity: 0.75;
+  }
+  20%,
+  38% {
+    opacity: 0.35;
+  }
+  40%,
+  55% {
+    opacity: 0.8;
+  }
+  57%,
+  72% {
+    opacity: 0.4;
+  }
+  74%,
+  100% {
+    opacity: 0;
+  }
+}
+
+/* Tighter body motion: lean / cover / stagger — not exaggerated squash */
+@keyframes platformFlutterToon {
+  0%,
+  4% {
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+    opacity: 1;
+    filter: none;
+  }
+  5%,
+  12% {
+    transform: translate3d(2px, -1px, 0) rotate(-2deg) scale(1.01);
+    opacity: 1;
+  }
+  14%,
+  22% {
+    transform: translate3d(5px, -2px, 0) rotate(-3.5deg) scale(1.03);
+    opacity: 1;
+  }
+  24%,
+  32% {
+    transform: translate3d(2px, 1px, 0) rotate(2deg) scale(1.02);
+    opacity: 1;
+  }
+  34%,
+  42% {
+    transform: translate3d(-2px, -3px, 0) rotate(-2.5deg) scale(1.04);
+    opacity: 1;
+    filter: brightness(1.04);
+  }
+  44%,
+  52% {
+    transform: translate3d(3px, 1px, 0) rotate(-2deg) scale(0.99);
+    opacity: 1;
+    filter: none;
+  }
+  54%,
+  62% {
+    transform: translate3d(-1px, 2px, 0) rotate(3deg) scale(1.03);
+    opacity: 1;
+  }
+  64%,
+  70% {
+    transform: translate3d(1px, -1px, 0) rotate(-3deg) scale(1.02);
+    opacity: 1;
+  }
+  72%,
+  76% {
+    transform: translate3d(-8px, 3px, 0) rotate(4deg) scale(0.97);
+    opacity: 0.94;
+    filter: grayscale(0.08);
+  }
+  78%,
+  86% {
+    transform: translate3d(-22px, 6px, 0) rotate(-6deg) scale(0.9);
+    opacity: 0.62;
+    filter: grayscale(0.22);
+  }
+  88%,
+  94% {
+    transform: translate3d(-30px, 8px, 0) rotate(-8deg) scale(0.84);
+    opacity: 0.42;
+    filter: grayscale(0.32) brightness(0.94);
+  }
+  96% {
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+    opacity: 1;
+    filter: none;
+  }
+  100% {
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+    opacity: 1;
+    filter: none;
+  }
+}
+
+@keyframes platformRnToon {
+  0%,
+  4% {
+    transform: translate3d(0, 0, 0) scale(1);
+    filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.35));
+  }
+  6%,
+  14% {
+    transform: translate3d(-4px, -0.5px, 0) scale(1.015);
+    filter: drop-shadow(0 5px 11px rgba(88, 196, 220, 0.28));
+  }
+  16%,
+  26% {
+    transform: translate3d(1px, 0.5px, 0) scale(0.98);
+    filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.38));
+  }
+  28%,
+  40% {
+    transform: translate3d(-6px, -1.5px, 0) scale(1.04);
+    filter: drop-shadow(0 0 12px rgba(88, 196, 220, 0.38));
+  }
+  42%,
+  52% {
+    transform: translate3d(-2px, 1px, 0) scale(1.01);
+    filter: drop-shadow(0 5px 12px rgba(88, 196, 220, 0.35));
+  }
+  54%,
+  64% {
+    transform: translate3d(-3px, -1px, 0) scale(1.05);
+    filter: drop-shadow(0 0 14px rgba(88, 196, 220, 0.42));
+  }
+  66%,
+  76% {
+    transform: translate3d(-1px, -0.5px, 0) scale(1.07);
+    filter: drop-shadow(0 0 16px rgba(88, 196, 220, 0.48));
+  }
+  78%,
+  94% {
+    transform: translate3d(0, -1.5px, 0) scale(1.1);
+    filter: drop-shadow(0 0 18px rgba(88, 196, 220, 0.58)) drop-shadow(0 6px 14px rgba(0, 0, 0, 0.38));
+  }
+  96% {
+    transform: translate3d(0, 0, 0) scale(1);
+    filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.35));
+  }
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+    filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.35));
+  }
+}
+
+@keyframes platformCrownToon {
+  0%,
+  76% {
+    opacity: 0;
+    transform: scale(0.55) translateY(6px);
+  }
+  78%,
+  94% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  96%,
+  100% {
+    opacity: 0;
+    transform: scale(0.85) translateY(3px);
+  }
+}
+
+@keyframes platformFightBurstToon {
+  0%,
+  26.4% {
+    opacity: 0;
+    transform: scale(0.35);
+  }
+  27% {
+    opacity: 0.55;
+    transform: scale(1.15);
+  }
+  29.5% {
+    opacity: 0;
+    transform: scale(1.55);
+  }
+  43%,
+  43.6% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  44% {
+    opacity: 0.5;
+    transform: scale(1.08);
+  }
+  45.5% {
+    opacity: 0;
+    transform: scale(1.45);
+  }
+  72%,
+  73.2% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  73.8% {
+    opacity: 0.58;
+    transform: scale(1.2);
+  }
+  76% {
+    opacity: 0;
+    transform: scale(1.6);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.6);
+  }
+}
+
+@keyframes platformFightSparkToon {
+  0%,
+  3.4% {
+    opacity: 0;
+    transform: scale(0.25) rotate(0deg);
+  }
+  4% {
+    opacity: 0.5;
+    transform: scale(1) rotate(-4deg);
+  }
+  5.5% {
+    opacity: 0;
+    transform: scale(1.35) rotate(6deg);
+  }
+  14%,
+  14.8% {
+    opacity: 0;
+    transform: scale(0.28);
+  }
+  15.2% {
+    opacity: 0.48;
+    transform: scale(0.95);
+  }
+  16.8% {
+    opacity: 0;
+    transform: scale(1.35);
+  }
+  27%,
+  28% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  28.5% {
+    opacity: 0.45;
+    transform: scale(1.02);
+  }
+  30.5% {
+    opacity: 0;
+    transform: scale(1.4);
+  }
+  48%,
+  49% {
+    opacity: 0;
+    transform: scale(0.28);
+  }
+  49.5% {
+    opacity: 0.42;
+    transform: scale(1);
+  }
+  51% {
+    opacity: 0;
+    transform: scale(1.38);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.38);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-logo-scene {
+    min-height: 0;
+  }
+
+  .brand-logo--landing .brand-logo-img--landing {
+    animation: none;
+    transform: none;
+  }
+
+  .platform-logo-fight__tag {
+    opacity: 0.5;
+  }
+
+  .platform-logo-fight__side--flutter,
+  .platform-logo-fight__side--rn,
+  .platform-logo-fight__crown,
+  .platform-logo-fight__burst,
+  .platform-logo-fight__burst--spark,
+  .platform-logo-fight__gun--flutter,
+  .platform-logo-fight__gun--rn,
+  .platform-logo-fight__muzzle--flutter,
+  .platform-logo-fight__muzzle--flutter-b,
+  .platform-logo-fight__muzzle--rn,
+  .platform-logo-fight__muzzle--rn-volley2,
+  .platform-logo-fight__muzzle--rn-b,
+  .platform-logo-fight__bullet--fl,
+  .platform-logo-fight__bullet--fl-b,
+  .platform-logo-fight__bullet--rn,
+  .platform-logo-fight__bullet--rn2,
+  .platform-logo-fight__bullet--rn-c,
+  .platform-logo-fight__bullet--tracer {
+    animation: none;
+  }
+
+  .platform-logo-fight__side--flutter {
+    transform: translate3d(-8px, 3px, 0) rotate(-6deg) scale(0.92);
+    opacity: 0.55;
+    filter: grayscale(0.22);
+  }
+
+  .platform-logo-fight__side--rn {
+    transform: scale(1.04);
+    filter: drop-shadow(0 0 12px rgba(88, 196, 220, 0.4));
+  }
+
+  .platform-logo-fight__crown {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 /* Brand logo asset (transparent PNG) */
@@ -264,6 +1463,84 @@ textarea {
 
 .landing-card--examples {
   padding: 1.35rem 1.5rem 1.5rem;
+}
+
+.landing-scene-note {
+  margin: 0 auto 0.25rem;
+  max-width: 42rem;
+  padding: 0 0.25rem;
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  text-align: center;
+  color: rgba(161, 161, 181, 0.92);
+}
+
+.landing-scene-note strong {
+  color: #c7c7d6;
+  font-weight: 600;
+}
+
+.landing-prose {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.65;
+  color: var(--muted);
+  text-align: left;
+}
+
+.landing-prose p {
+  margin: 0 0 1rem;
+}
+
+.landing-prose p:last-child {
+  margin-bottom: 0;
+}
+
+.landing-prose strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.landing-steps {
+  margin: 0.25rem 0 0;
+  padding-left: 1.35rem;
+  text-align: left;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.landing-steps li {
+  margin-bottom: 0.85rem;
+  padding-left: 0.2rem;
+}
+
+.landing-steps li:last-child {
+  margin-bottom: 0;
+}
+
+.landing-steps strong {
+  display: block;
+  margin-bottom: 0.2rem;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.landing-checklist {
+  margin: 0.25rem 0 0;
+  padding-left: 1.35rem;
+  text-align: left;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.landing-checklist li {
+  margin-bottom: 0.65rem;
+}
+
+.landing-checklist li:last-child {
+  margin-bottom: 0;
 }
 
 /* Hero (AI product style) */
@@ -368,6 +1645,34 @@ textarea {
   color: #a1a1b5;
 }
 
+.hero-ai-intro {
+  margin: 0 auto 1.75rem;
+  max-width: 40rem;
+  text-align: left;
+}
+
+.hero-ai-intro p {
+  margin: 0 0 1.1rem;
+  font-size: clamp(0.98rem, 2.2vw, 1.08rem);
+  line-height: 1.65;
+  color: #a1a1b5;
+}
+
+.hero-ai-intro p:last-child {
+  margin-bottom: 0;
+}
+
+.hero-ai-intro strong {
+  color: #d4d4e8;
+  font-weight: 600;
+}
+
+.hero-ai-product-name {
+  color: #e8e8f2;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
 .hero-ai-cta {
   display: flex;
   flex-wrap: wrap;
@@ -403,9 +1708,12 @@ button.btn.hero-ai-btn-secondary:focus-visible {
 }
 
 .hero-ai-hint {
-  margin: 0 0 1.75rem;
-  font-size: 0.8rem;
+  margin: 0 auto 1.75rem;
+  max-width: 44rem;
+  font-size: 0.8125rem;
+  line-height: 1.55;
   color: #6b6b80;
+  text-align: left;
 }
 
 .hero-ai-mono {
