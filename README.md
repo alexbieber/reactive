@@ -14,13 +14,15 @@ REACTIVE is a **spec-first** product: you (or the AI copilot) produce a canonica
 4. [Quick start](#quick-start)
 5. [Web UI & branding](#web-ui--branding)
 6. [Studio (copilot + preview)](#studio-copilot--preview)
-7. [HTTP API](#http-api)
-8. [Environment variables](#environment-variables)
-9. [Production & Docker](#production--docker)
-10. [CLI & scripts](#cli--scripts)
-11. [Documentation](#documentation)
-12. [Limits & honesty](#limits--honesty)
-13. [License](#license)
+7. [Conference room](#conference-room)
+8. [HTTP API](#http-api)
+9. [Environment variables](#environment-variables)
+10. [Production & Docker](#production--docker)
+11. [CLI & scripts](#cli--scripts)
+12. [Documentation](#documentation)
+13. [Security](#security)
+14. [Limits & honesty](#limits--honesty)
+15. [License](#license)
 
 ---
 
@@ -33,6 +35,9 @@ REACTIVE is a **spec-first** product: you (or the AI copilot) produce a canonica
 | **Codegen** | Deterministic generation from the spec into the bundled Expo template (`npm run codegen`). |
 | **ZIP download** | Validated spec → API bundles a runnable Expo project (Review step). |
 | **Studio** | Multi-operator **chat** (Discovery → Architect → Craft → Build), **Apply** valid spec JSON from the model, **Expo web preview** in an iframe, **QR** for opening the preview URL on a phone. Deep-link: `?studio=1`. |
+| **Project build** | Monaco editor + generated files + ZIP from the **Project build** flow (`?project=1`). |
+| **RN quick builder** | Prompt → clarifying questions → streamed Expo project (`/api/builder/*`); Studio integration. |
+| **Conference room** | Eight tagged teammates in a stand-up-style dialogue (same LLM / BYOK as Studio). Deep-link: `?teamroom=1`. |
 | **LLM** | Server key and/or **BYOK** (OpenAI, Anthropic, Google, Groq, Mistral, **NVIDIA NIM** — `https://integrate.api.nvidia.com/v1`, keys `nvapi-…`). Streaming (`/api/chat/stream`) or one-shot (`/api/chat`). |
 | **GitHub context** | Optional: load public repo metadata (README, `package.json`, Expo config, tsconfig, EAS, Babel/Metro) into the copilot—**hints only**; codegen stays template-locked. |
 | **Token estimates** | Per-request **input/output** token counts (gpt-tokenizer / GPT-4o-style) on chat and preview responses; session totals in the UI. |
@@ -55,8 +60,8 @@ REACTIVE is a **spec-first** product: you (or the AI copilot) produce a canonica
 ## Architecture at a glance
 
 ```
-apps/web     → Vite + React (landing, wizard, Studio)
-apps/api     → Express (validate, generate ZIP, preview build, chat, GitHub context)
+apps/web     → Vite + React (landing, wizard, Studio, conference room, builder)
+apps/api     → Express (validate, generate ZIP, preview build, chat, GitHub context, team room, builder)
 template/    → Expo starter used by codegen
 docs/        → Schema, examples, execution phases, user flow, YC draft, related OSS notes
 ```
@@ -78,15 +83,33 @@ npm run dev:platform
 - **Web:** Vite prints a URL (often `http://localhost:5173`; next free port if busy).
 - **API:** `http://localhost:8788` — check `http://localhost:8788/api/health` (default port avoids clashing with other tools that used **8787**).
 
+**Clean restart** (if something else is already bound to **8788**, e.g. an old API binary):
+
+```bash
+npm run dev:platform:fresh
+```
+
+This runs `scripts/free-port.mjs` (SIGTERM, then SIGKILL if needed) and starts API + web again.
+
+**API only** from repo root (health should log `REACTIVE API v1.4.0` or newer):
+
+```bash
+npm run dev:api:root
+```
+
+Copy **`.env.example`** to **`.env`** for local server keys (never commit `.env`). See [Environment variables](#environment-variables).
+
 **Studio chat shows “Cannot POST /api/chat/stream” (404)?** Vite is proxying `/api` to the wrong process. Run **`npm run dev:platform`** from this repo so the Express app listens on **8788** (or set `PORT` + `API_PROXY_TARGET` to match). Confirm with:
 
 `curl -s -X POST http://127.0.0.1:8788/api/chat/stream -H 'Content-Type: application/json' -d '{"messages":[{"role":"user","content":"hi"}]}' | head -c 120` — you should see `data:` SSE lines, not HTML “Cannot POST”.
 
-**Team conference room (`Cannot POST /api/team-room/stream`)?** The process on **8788** is usually an **old** API. From repo root: **`npm run dev:platform:fresh`** (SIGTERM then SIGKILL anything still on **8788**, then `dev:platform`). Or **`npm run dev:api:root`** (API only — terminal should log **`REACTIVE API v1.4.0`**). Confirm:
+**Conference room (`Cannot POST /api/team-room/stream` or health shows old `version`)?** The process on **8788** is usually **not** this checkout’s API. Use **`npm run dev:platform:fresh`**, then confirm:
 
-`curl -s http://127.0.0.1:8788/api/team-room` → `"ok":true` · `curl -s http://127.0.0.1:8788/api/health` → **`version`** **1.3+** (current repo: **1.4.0**) and **`teamRoomStream`: true**.
+`curl -s http://127.0.0.1:8788/api/health` → **`version`** **1.3+** (e.g. **1.4.0**) and **`capabilities.teamRoomStream`: true** · `curl -s http://127.0.0.1:8788/api/team-room` → `"ok":true`.
 
-Studio needs the API. The web app proxies `/api` to the API in dev (see `apps/web` Vite config).
+**Custom API origin in dev:** If you set **`VITE_API_BASE`** in a `.env` file under `apps/web`, it must point at the same API you started (e.g. `http://127.0.0.1:8788`), or remove it so Vite proxies `/api` to **8788**.
+
+Studio and conference room need the API. The web app proxies `/api` to the API in dev (see `apps/web/vite.config.ts`).
 
 **Phones and preview:** Devices cannot open `localhost`. Use your machine’s **LAN IP** in the browser, or set **`VITE_PUBLIC_PREVIEW_ORIGIN`** for deployed builds so QR codes and links point at a reachable host.
 
@@ -121,10 +144,19 @@ Commit updated files under `apps/web/public/` after regenerating.
 ## Studio (copilot + preview)
 
 1. Open Studio (`?studio=1` or from the UI).
-2. Set **`OPENAI_API_KEY`** or **`NVIDIA_API_KEY`** on the API **or** use **Bring your own API key** (stored in the browser; forwarded through your API to the provider). NVIDIA uses OpenAI-compatible Chat Completions at `integrate.api.nvidia.com`; keys start with `nvapi-`.
+2. Set **`OPENAI_API_KEY`** or **`NVIDIA_API_KEY`** on the API **or** use **Bring your own API key** (BYOK). Keys are stored **in that browser** (session / optional localStorage); they are **not** synced across browsers or devices—paste again in Safari vs Chrome if needed.
 3. Chat follows the loop: **chat → valid App Spec JSON → Apply → Build preview**.
 4. **Token consumption** shows **Input** / **Output** for the last reply and session totals (estimates via `gpt-tokenizer`).
 5. Optional **GitHub context**: presets or manual `owner/repo` (+ monorepo **App path**). Set **`GITHUB_TOKEN`** (or `GH_TOKEN`) on the API for higher GitHub API rate limits.
+
+---
+
+## Conference room
+
+A **multi-speaker stand-up** using the same roster as Studio (Maya, Jordan, Sam, Alex, Priya, Riley, Casey, Morgan). The model streams a tagged transcript (`[Discovery]`, `[Architect]`, …). Open **`?teamroom=1`** or use the landing / Studio entry.
+
+- Requires a **current API** with `teamRoomStream` (see [Quick start](#quick-start)) and an **LLM key** (BYOK in this browser or server env vars).
+- Prefer a **normal browser tab** for long streams; embedded IDE previews sometimes cancel SSE connections.
 
 ---
 
@@ -132,14 +164,16 @@ Commit updated files under `apps/web/public/` after regenerating.
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| `GET` | `/api/health` | Service info, `openaiModel`, `nvidiaModel`, capabilities (`codegen`, `preview`, `chat`, `chatStream`, `rnQuickBuilder`, `githubRepoContext`, `tokenEstimates`, `serverOpenAiKey`, `serverNvidiaKey`, `llmProviders`). |
+| `GET` | `/api/health` | Service info, `version`, `openaiModel`, `nvidiaModel`, capabilities (`codegen`, `preview`, `chat`, `chatStream`, **`teamRoomStream`**, `rnQuickBuilder`, `githubRepoContext`, `tokenEstimates`, `serverOpenAiKey`, `serverNvidiaKey`, `llmProviders`). |
 | `POST` | `/api/validate` | Body: App Spec JSON → validate (AJV / schema pipeline). |
 | `POST` | `/api/generate` | Body: App Spec → **ZIP** of generated Expo project. |
 | `POST` | `/api/preview-build` | Body: App Spec → build Expo web export → `{ previewId, entry, tokenUsage }` (spec JSON size; no LLM). |
 | `GET` | `/api/preview-frame/:id/*` | Static files for the preview iframe (session expires ~1h). |
 | `POST` | `/api/chat` | Body: `{ messages, spec, llm?, githubContext? }` → `{ reply, proposedSpec?, specValidationError?, tokenUsage }`. |
 | `POST` | `/api/chat/stream` | Same body; **SSE** with `delta` chunks and final `done` (includes `tokenUsage`). |
-| `POST` | `/api/builder/clarify` | Body: `{ prompt, llm? }` — plannew-style **5 clarifying questions** as JSON (same BYOK / multi-provider as chat). |
+| `GET` | `/api/team-room` | Capability probe (`ok`, route hints). |
+| `POST` | `/api/team-room/stream` | Body: `{ topic }` or `{ messages[], llm? }` — **SSE** conference transcript (same BYOK shape as chat). |
+| `POST` | `/api/builder/clarify` | Body: `{ prompt, llm? }` — clarifying **questions** as JSON (same BYOK / multi-provider as chat). |
 | `POST` | `/api/builder/generate-stream` | Body: `{ prompt, answers: [{ questionId, value }], llm? }` — **SSE** streaming `===FILE===…===END===` Expo project text; final `done` has `fullText`, `tokenUsage`. |
 | `POST` | `/api/github/context` | Body: `{ repo, ref?, appPath? }` → README, manifests, configs (public repos). |
 
@@ -163,6 +197,8 @@ Request bodies are JSON (large specs allowed; limit is several MB).
 | `SERVE_STATIC` | `1` to serve `apps/web/dist` from the API (single-process deploy). |
 | `VITE_PUBLIC_PREVIEW_ORIGIN` | **Build-time** (web): public origin for preview URLs/QR when not using localhost. |
 
+For a local template without committing secrets, start from **`.env.example`** (variable names only).
+
 ---
 
 ## Production & Docker
@@ -182,6 +218,8 @@ Open `http://localhost:3000` — SPA + `/api` on one host.
 docker build -t reactive .
 docker run --rm -p 3000:3000 reactive
 ```
+
+Pass secrets at runtime (e.g. `-e OPENAI_API_KEY=…`), not in the image. The `.dockerignore` excludes `.env` files from the build context.
 
 **Hardening before scale:** rate limits on generate/preview, timeouts around long exports, WAF, auth for sensitive routes, audit logs—see existing notes in this file’s history / PLAN.
 
@@ -214,10 +252,19 @@ npm run process:logo
 | Doc | Contents |
 |-----|----------|
 | [PLAN.md](PLAN.md) | Product vision, scope, roadmap. |
+| [SECURITY.md](SECURITY.md) | **Do not commit keys**; rotation; BYOK vs server keys. |
 | [docs/EXECUTION_PHASES.md](docs/EXECUTION_PHASES.md) | Delivery phases. |
 | [docs/USER_FLOW.md](docs/USER_FLOW.md) | Landing → wizard → ZIP. |
 | [docs/YC_APPLICATION.md](docs/YC_APPLICATION.md) | Pitch / YC-style draft. |
 | [docs/related-open-source.md](docs/related-open-source.md) | Related tools (reference; not vendored code). |
+
+---
+
+## Security
+
+- Never commit **API keys**, **tokens**, or **`.env`** files. Use **`.env.example`** for variable names only. See **[SECURITY.md](SECURITY.md)**.
+- Enable **GitHub secret scanning** and **push protection** on the remote repository when possible.
+- If a key was ever pasted into a committed file, **rotate** it at the provider.
 
 ---
 
