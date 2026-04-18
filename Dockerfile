@@ -2,9 +2,13 @@
 FROM node:22-bookworm-slim
 WORKDIR /app
 COPY . .
-RUN npm ci && npm run build -w web
+RUN npm ci && npm run build -w web \
+  && groupadd --gid 1001 reactive \
+  && useradd --uid 1001 --gid reactive --no-create-home reactive \
+  && chown -R reactive:reactive /app
 ENV NODE_ENV=production
 ENV SERVE_STATIC=1
 ENV PORT=3000
+USER reactive
 EXPOSE 3000
 CMD ["node", "apps/api/src/server.mjs"]

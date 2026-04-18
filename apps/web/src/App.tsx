@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createDefaultSpec, slugify } from "./defaultSpec";
 import Landing from "./Landing";
+import Studio from "./Studio";
 import type { AppSpec, Archetype, Block } from "./types";
 import { stampTimes, validateSpec } from "./validateSpec";
 
@@ -38,15 +39,18 @@ const BLOCKS: Block[] = [
 
 const apiBase = import.meta.env.VITE_API_BASE ?? "";
 
-function initialView(): "landing" | "wizard" {
+function initialView(): "landing" | "wizard" | "studio" {
   if (typeof window === "undefined") return "landing";
   const q = new URLSearchParams(window.location.search);
+  if (q.get("studio") === "1") return "studio";
   if (q.get("wizard") === "1" || q.get("build") === "1") return "wizard";
   return "landing";
 }
 
 export default function App() {
-  const [view, setView] = useState<"landing" | "wizard">(initialView);
+  const [view, setView] = useState<"landing" | "wizard" | "studio">(initialView);
+  const [studioInitialSpec, setStudioInitialSpec] = useState<AppSpec>(() => createDefaultSpec());
+  const [studioKey, setStudioKey] = useState(0);
   const [step, setStep] = useState(0);
   const [spec, setSpec] = useState<AppSpec>(() => createDefaultSpec());
 
@@ -139,7 +143,7 @@ export default function App() {
 
   if (view === "landing") {
     return (
-      <div className="app-shell app-shell--wide">
+      <div className="app-shell app-shell--wide app-shell--landing">
         <Landing
           onStartWizard={() => {
             setSpec(createDefaultSpec());
@@ -147,6 +151,13 @@ export default function App() {
             setView("wizard");
             setValidationError(null);
             window.history.pushState({}, "", "?wizard=1");
+          }}
+          onStartStudio={(opts) => {
+            setStudioInitialSpec(opts?.demo ?? createDefaultSpec());
+            setStudioKey((k) => k + 1);
+            setView("studio");
+            setValidationError(null);
+            window.history.pushState({}, "", "?studio=1");
           }}
           onLoadDemo={(loaded, opts) => {
             setSpec(loaded);
@@ -160,12 +171,24 @@ export default function App() {
     );
   }
 
+  if (view === "studio") {
+    return (
+      <Studio
+        key={studioKey}
+        initialSpec={studioInitialSpec}
+        onBack={() => {
+          setView("landing");
+          window.history.pushState({}, "", "/");
+        }}
+      />
+    );
+  }
+
   return (
     <div className="app-shell">
       <div className="brand brand-row">
         <div>
           <h1>REACTIVE</h1>
-          <span>beta</span>
         </div>
         <button
           type="button"
@@ -175,14 +198,11 @@ export default function App() {
             window.history.pushState({}, "", "/");
           }}
         >
-          ← Product story
+          ← Home
         </button>
       </div>
       <p className="tagline">
-        Guided App Spec → frozen JSON → <strong>generated TypeScript/Expo project</strong> (ZIP or CLI). Run{" "}
-        <code className="inline-code">npm run dev:platform</code> for the API, then use <strong>Download Expo project
-        (ZIP)</strong> on Review. Preview on a device with Expo Go after <code className="inline-code">npx expo start</code>
-        .
+        Edit the App Spec, then on Review download JSON/ZIP or use <strong>Open in Studio</strong> for preview/chat.
       </p>
 
       <div className="step-indicator">
@@ -405,11 +425,9 @@ export default function App() {
         <div className="panel">
           <h2>Review</h2>
           <div className="review-callout">
-            <strong>Code is generated when you download the ZIP</strong> (or run the CLI below) — not in a chat panel.
-            The ZIP is a full Expo project: <code className="inline-code">app/(tabs)/…</code> screens,{" "}
-            <code className="inline-code">constants/Colors.ts</code>, <code className="inline-code">generatedSpec.ts</code>
-            , etc. <strong>Preview:</strong> unzip → <code className="inline-code">npx expo start</code> → open in{" "}
-            <strong>Expo Go</strong> (no in-browser simulator here).
+            ZIP = full Expo project (<code className="inline-code">app/(tabs)/</code>, theme,{" "}
+            <code className="inline-code">generatedSpec.ts</code>). Device: unzip,{" "}
+            <code className="inline-code">npx expo start</code>, Expo Go. Browser: use <strong>Open in Studio</strong> below.
           </div>
           {!v.ok && (
             <div className="error-banner" style={{ marginBottom: "0.75rem" }}>
@@ -427,6 +445,24 @@ export default function App() {
           {zipMessage && (
             <p style={{ color: "var(--accent)", marginTop: "0.75rem", fontSize: "0.9rem" }}>{zipMessage}</p>
           )}
+          <div style={{ marginTop: "1rem" }}>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => {
+                setStudioInitialSpec(spec);
+                setStudioKey((k) => k + 1);
+                setView("studio");
+                setValidationError(null);
+                window.history.pushState({}, "", "?studio=1");
+              }}
+            >
+              Open in Studio
+            </button>
+            <small className="hint" style={{ marginTop: "0.5rem" }}>
+              Same spec; needs API running (<code className="inline-code">npm run dev:platform</code>).
+            </small>
+          </div>
         </div>
       )}
 

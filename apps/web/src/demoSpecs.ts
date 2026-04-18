@@ -6,7 +6,7 @@ function clone(s: AppSpec): AppSpec {
   return JSON.parse(JSON.stringify(s)) as AppSpec;
 }
 
-/** One-click demos for investor / YC conversations */
+/** Example specs from docs/spec-schema/examples/ */
 export const DEMO_SPECS = {
   habit: clone(habit as AppSpec),
   recipe: clone(recipe as AppSpec),

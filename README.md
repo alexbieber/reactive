@@ -17,8 +17,22 @@ npm install
 npm run dev:platform
 ```
 
-- **Wizard:** http://localhost:5173  
+- **Web:** Vite prints the URL (often `http://localhost:5173`; next free port if busy). **Studio** shows a **QR code** for the preview URL (open the web build on your phone). Phones can’t reach `localhost` — use your machine’s **LAN IP** in the address bar, or set **`VITE_PUBLIC_PREVIEW_ORIGIN`** for deployed builds. **Expo Go** (native) still uses the ZIP + `npx expo start` QR from the terminal.  
 - **API:** http://localhost:8787/api/health  
+
+Studio (chat + preview) needs the API. Chat is a **multi-agent** prompt (Discovery → Architect → Craft → Build): Discovery asks **idea-focused questions** before others ship full App Spec JSON. Uses **`POST /api/chat/stream`** (SSE) when `OPENAI_API_KEY` is set; falls back to **`POST /api/chat`**. Proposed JSON is **schema-validated** before “Apply”. **`GET /api/health`** → `capabilities.chat`.
+
+### Production API hardening
+
+| Env | Purpose |
+|-----|---------|
+| `CORS_ORIGIN` | Comma-separated allowed browser origins (omit in dev = allow all). **Set in production.** |
+| `TRUST_PROXY` | `1` if behind `X-Forwarded-*` (e.g. nginx). |
+| `NODE_ENV=production` | Hides raw upstream LLM errors from clients. |
+| `OPENAI_API_KEY` | Required for `/api/chat`. |
+| `OPENAI_MODEL` | Optional override (default `gpt-4o-mini`). |
+
+**Not included yet (add before scale):** rate limits on `/api/generate` and `/api/preview-build`, request timeouts around long exports, WAF, auth on admin routes, audit logging, separate preview worker.
 
 On the **Review** step, use **Download Expo project (ZIP)**. Unzip, then:
 
