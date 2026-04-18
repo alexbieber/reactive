@@ -21,6 +21,7 @@ jobs:
         run: |
           node --check apps/api/src/server.mjs
           node --check apps/api/src/githubContext.mjs
+          node --check apps/api/src/tokenUsage.mjs
       - name: Validate example specs
         run: npm run validate:spec:examples
       - name: Build web

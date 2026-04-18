@@ -1104,6 +1104,152 @@ small.hint {
   margin-bottom: 1rem;
 }
 
+.studio-token-meter {
+  margin-bottom: 1rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: rgba(99, 102, 241, 0.06);
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.studio-token-meter-title {
+  font-weight: 700;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 0.65rem;
+}
+
+.studio-token-block {
+  padding: 0.55rem 0;
+}
+
+.studio-token-meter > .studio-token-block + .studio-token-block {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: 0.65rem;
+  margin-top: 0.15rem;
+}
+
+.studio-token-block--compact {
+  padding-bottom: 0;
+}
+
+.studio-token-block-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  margin-bottom: 0.45rem;
+}
+
+.studio-token-block-label {
+  display: block;
+  font-weight: 600;
+  color: var(--text);
+  font-size: 0.8rem;
+}
+
+.studio-token-block-model {
+  font-size: 0.68rem;
+  color: var(--muted);
+  font-family: ui-monospace, monospace;
+}
+
+.studio-token-io-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+@media (max-width: 520px) {
+  .studio-token-io-pair {
+    grid-template-columns: 1fr;
+  }
+}
+
+.studio-token-io-box {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  padding: 0.5rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.studio-token-io-box--in {
+  border-color: rgba(52, 211, 153, 0.35);
+  background: rgba(52, 211, 153, 0.07);
+}
+
+.studio-token-io-box--out {
+  border-color: rgba(129, 140, 248, 0.4);
+  background: rgba(129, 140, 248, 0.08);
+}
+
+.studio-token-io-k {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.studio-token-io-n {
+  font-size: 1.35rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  line-height: 1.1;
+}
+
+.studio-token-io-unit {
+  font-size: 0.65rem;
+  color: var(--muted);
+}
+
+.studio-token-meter-meta {
+  margin: 0.45rem 0 0;
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.studio-token-meter-empty {
+  margin: 0.25rem 0 0;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.studio-token-meter-warn {
+  margin: 0.4rem 0 0;
+  font-size: 0.68rem;
+  color: #fcd34d;
+  line-height: 1.35;
+}
+
+.studio-token-block-preview {
+  margin: 0.35rem 0 0;
+  font-size: 0.72rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.studio-token-meter-note {
+  margin: 0.55rem 0 0;
+  padding-top: 0.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 0.65rem;
+  color: var(--muted);
+  opacity: 0.92;
+}
+
 .studio-pill {
   display: inline-flex;
   align-items: center;

@@ -22,6 +22,17 @@ const apiBase = import.meta.env.VITE_API_BASE ?? "";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
+/** From POST /api/chat and /api/chat/stream done — gpt-tokenizer baseline */
+type ChatTokenUsage = {
+  provider: string;
+  model: string;
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  encoder?: string;
+  estimate?: string;
+};
+
 /** Mirrors POST /api/github/context response — injected into copilot system prompt */
 type GithubContextPayload = {
   fullName: string;
@@ -126,6 +137,7 @@ async function parseSSEStream(
     fullText: string;
     proposedSpec: AppSpec | null;
     specValidationError: string | null;
+    tokenUsage?: ChatTokenUsage;
   }) => void
 ): Promise<void> {
   const reader = res.body?.getReader();
@@ -149,6 +161,7 @@ async function parseSSEStream(
         fullText?: string;
         proposedSpec?: AppSpec | null;
         specValidationError?: string | null;
+        tokenUsage?: ChatTokenUsage;
         message?: string;
       };
       try {
@@ -162,6 +175,10 @@ async function parseSSEStream(
           fullText: typeof j.fullText === "string" ? j.fullText : "",
           proposedSpec: (j.proposedSpec as AppSpec) ?? null,
           specValidationError: typeof j.specValidationError === "string" ? j.specValidationError : null,
+          tokenUsage:
+            j.tokenUsage && typeof j.tokenUsage.promptTokens === "number"
+              ? j.tokenUsage
+              : undefined,
         });
       }
       if (j.type === "error") throw new Error(j.message || "Stream error");
@@ -202,7 +219,27 @@ export default function Studio({ initialSpec, onBack }: Props) {
   const [githubAppPathInput, setGithubAppPathInput] = useState("");
   const [githubLoading, setGithubLoading] = useState(false);
   const [githubErr, setGithubErr] = useState<string | null>(null);
+  const [sessionLlm, setSessionLlm] = useState({ prompt: 0, completion: 0, total: 0, turns: 0 });
+  const [sessionPreview, setSessionPreview] = useState({ specTokens: 0, builds: 0 });
+  const [lastChatUsage, setLastChatUsage] = useState<ChatTokenUsage | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
+
+  const recordChatUsage = useCallback((u: ChatTokenUsage) => {
+    setSessionLlm((s) => ({
+      prompt: s.prompt + u.promptTokens,
+      completion: s.completion + u.completionTokens,
+      total: s.total + u.totalTokens,
+      turns: s.turns + 1,
+    }));
+    setLastChatUsage(u);
+  }, []);
+
+  const recordPreviewSpecTokens = useCallback((specJsonTokens: number) => {
+    setSessionPreview((s) => ({
+      specTokens: s.specTokens + specJsonTokens,
+      builds: s.builds + 1,
+    }));
+  }, []);
 
   const previewAbsUrl = previewUrl ? previewAbsoluteUrl(previewUrl) : null;
   const showLocalhostQrHint = Boolean(previewAbsUrl && isLocalhostHost());
@@ -356,6 +393,7 @@ export default function Studio({ initialSpec, onBack }: Props) {
       reply?: string;
       proposedSpec?: AppSpec;
       specValidationError?: string | null;
+      tokenUsage?: ChatTokenUsage;
       error?: string;
       hint?: string;
     };
@@ -365,6 +403,9 @@ export default function Studio({ initialSpec, onBack }: Props) {
       );
     }
     const reply = typeof j.reply === "string" ? j.reply : "";
+    if (j.tokenUsage && typeof j.tokenUsage.totalTokens === "number") {
+      recordChatUsage(j.tokenUsage);
+    }
     setMessages((m) => [...m, { role: "assistant", content: reply }]);
     setSpecValidationError(
       typeof j.specValidationError === "string" && j.specValidationError ? j.specValidationError : null
@@ -448,8 +489,11 @@ export default function Studio({ initialSpec, onBack }: Props) {
             });
             scrollChat();
           },
-          ({ proposedSpec, specValidationError: sve }) => {
+          ({ proposedSpec, specValidationError: sve, tokenUsage: tu }) => {
             setSpecValidationError(sve ?? null);
+            if (tu && typeof tu.totalTokens === "number") {
+              recordChatUsage(tu);
+            }
             if (proposedSpec) {
               setPendingSpec(proposedSpec);
               setToast("Valid App Spec received — Apply or Apply & preview.");
@@ -579,11 +623,15 @@ export default function Studio({ initialSpec, onBack }: Props) {
         previewId?: string;
         entry?: string;
         error?: string;
+        tokenUsage?: { specJsonTokens?: number };
       };
       if (!r.ok) throw new Error(typeof j.error === "string" ? j.error : r.statusText);
       const id = j.previewId;
       const entry = j.entry ?? "index.html";
       if (!id) throw new Error("No previewId from server");
+      if (typeof j.tokenUsage?.specJsonTokens === "number") {
+        recordPreviewSpecTokens(j.tokenUsage.specJsonTokens);
+      }
       setPreviewUrl(`${apiBase}/api/preview-frame/${id}/${entry}`);
       setToast("Preview ready.");
     } catch (e) {
@@ -665,6 +713,95 @@ export default function Studio({ initialSpec, onBack }: Props) {
           {llmSettings.apiKey.trim() ? "BYOK set" : "No BYOK"}
         </span>
       </div>
+
+      {apiCaps?.chat && (
+        <div className="studio-token-meter">
+          <div className="studio-token-meter-title">Token consumption (estimated)</div>
+
+          {lastChatUsage && (
+            <div
+              className="studio-token-block"
+              aria-label={`Last copilot reply: ${lastChatUsage.promptTokens} input tokens, ${lastChatUsage.completionTokens} output tokens`}
+            >
+              <div className="studio-token-block-head">
+                <span className="studio-token-block-label">Last copilot reply</span>
+                <span className="studio-token-block-model" title={lastChatUsage.estimate}>
+                  {lastChatUsage.model}
+                </span>
+              </div>
+              <div className="studio-token-io-pair">
+                <div
+                  className="studio-token-io-box studio-token-io-box--in"
+                  title="Input: system prompt + your conversation history sent to the model"
+                >
+                  <span className="studio-token-io-k">Input</span>
+                  <span className="studio-token-io-n">{lastChatUsage.promptTokens.toLocaleString()}</span>
+                  <span className="studio-token-io-unit">tokens</span>
+                </div>
+                <div
+                  className="studio-token-io-box studio-token-io-box--out"
+                  title="Output: text generated in this reply"
+                >
+                  <span className="studio-token-io-k">Output</span>
+                  <span className="studio-token-io-n">{lastChatUsage.completionTokens.toLocaleString()}</span>
+                  <span className="studio-token-io-unit">tokens</span>
+                </div>
+              </div>
+              {lastChatUsage.estimate ? (
+                <p className="studio-token-meter-warn">{lastChatUsage.estimate}</p>
+              ) : null}
+            </div>
+          )}
+
+          <div
+            className="studio-token-block"
+            aria-label={`Session copilot totals: ${sessionLlm.prompt} input, ${sessionLlm.completion} output`}
+          >
+            <span className="studio-token-block-label">This session (all copilot turns)</span>
+            {sessionLlm.turns === 0 ? (
+              <p className="studio-token-meter-empty">No copilot turns yet — input/output appear after each reply.</p>
+            ) : (
+              <>
+                <div className="studio-token-io-pair">
+                  <div
+                    className="studio-token-io-box studio-token-io-box--in"
+                    title="Sum of input tokens across every copilot request this session"
+                  >
+                    <span className="studio-token-io-k">Input</span>
+                    <span className="studio-token-io-n">{sessionLlm.prompt.toLocaleString()}</span>
+                    <span className="studio-token-io-unit">tokens (sum)</span>
+                  </div>
+                  <div
+                    className="studio-token-io-box studio-token-io-box--out"
+                    title="Sum of output tokens across every copilot reply this session"
+                  >
+                    <span className="studio-token-io-k">Output</span>
+                    <span className="studio-token-io-n">{sessionLlm.completion.toLocaleString()}</span>
+                    <span className="studio-token-io-unit">tokens (sum)</span>
+                  </div>
+                </div>
+                <p className="studio-token-meter-meta">
+                  {sessionLlm.turns} turn(s) · {sessionLlm.total.toLocaleString()} tokens total (input + output)
+                </p>
+              </>
+            )}
+          </div>
+
+          <div className="studio-token-block studio-token-block--compact">
+            <span className="studio-token-block-label">Preview build (no LLM)</span>
+            <p className="studio-token-block-preview">
+              {sessionPreview.builds === 0
+                ? "Build a preview to count App Spec JSON size in tokens."
+                : `${sessionPreview.builds} build(s) · ~${sessionPreview.specTokens.toLocaleString()} tokens (spec JSON, summed)`}
+            </p>
+          </div>
+
+          <p className="studio-token-meter-note">
+            Counts use <code className="inline-code">gpt-tokenizer</code> (gpt-4o-mini / o200k). Provider billing may use a
+            different tokenizer.
+          </p>
+        </div>
+      )}
 
       <details className="studio-byok">
         <summary>Bring your own API key (OpenAI, Claude, Gemini, Groq, Mistral)</summary>

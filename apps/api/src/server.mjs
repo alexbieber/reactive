@@ -25,6 +25,7 @@ import {
   githubContextToPromptAugment,
   parseGithubRepoInput,
 } from "./githubContext.mjs";
+import { computeChatTokenUsage, computeSpecJsonTokenUsage } from "./tokenUsage.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, "..", "..", "..");
@@ -80,6 +81,7 @@ app.get("/api/health", (_req, res) => {
       serverOpenAiKey: Boolean(process.env.OPENAI_API_KEY),
       llmProviders: ["openai", "anthropic", "google", "groq", "mistral"],
       githubRepoContext: true,
+      tokenEstimates: true,
     },
   });
 });
@@ -243,12 +245,18 @@ app.post("/api/preview-build", async (req, res) => {
     const entryPath = path.join(webDist, entry);
     const fallback = fs.existsSync(entryPath) ? entry : fs.readdirSync(webDist).find((f) => f.endsWith(".html") && !f.startsWith("+")) || "today.html";
 
+    const specTu = computeSpecJsonTokenUsage(spec);
     res.json({
       ok: true,
       previewId: id,
       /** path under /api/preview-frame/:id/ */
       entry: fallback,
       message: "Open preview iframe (Expo web export — same UI code as native, web renderer).",
+      tokenUsage: {
+        phase: "preview-build",
+        llmTokens: 0,
+        ...specTu,
+      },
     });
   } catch (e) {
     console.error(e);
@@ -308,8 +316,15 @@ app.post("/api/chat", async (req, res) => {
       messages: safeMessages,
     });
     const { proposedSpec, specValidationError } = extractAndValidateProposedSpec(text);
+    const tokenUsage = computeChatTokenUsage({
+      provider: resolved.provider,
+      model: resolved.model,
+      system,
+      messages: safeMessages,
+      completionText: text,
+    });
 
-    res.json({ reply: text, proposedSpec, specValidationError });
+    res.json({ reply: text, proposedSpec, specValidationError, tokenUsage });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     const safe = process.env.NODE_ENV === "production" ? "Model request failed" : msg.slice(0, 500);
@@ -367,7 +382,14 @@ app.post("/api/chat/stream", async (req, res) => {
     }
     clearTimeout(t);
     const { proposedSpec, specValidationError } = extractAndValidateProposedSpec(full);
-    writeSse({ type: "done", fullText: full, proposedSpec, specValidationError });
+    const tokenUsage = computeChatTokenUsage({
+      provider: resolved.provider,
+      model: resolved.model,
+      system,
+      messages: safeMessages,
+      completionText: full,
+    });
+    writeSse({ type: "done", fullText: full, proposedSpec, specValidationError, tokenUsage });
     res.end();
   } catch (e) {
     clearTimeout(t);
