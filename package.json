@@ -1,6 +1,7 @@
 {
   "name": "reactive",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "workspaces": [
     "apps/*"

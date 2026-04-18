@@ -186,4 +186,4 @@ npm run enrich:spec -- docs/spec-schema/examples/habit-tracker.spec.json
 
 ## License
 
-Private / unlicensed until you add one.
+[MIT](LICENSE) — see the `LICENSE` file in the repository root.
