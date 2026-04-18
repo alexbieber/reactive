@@ -1,9 +1,28 @@
 node_modules/
 dist/
+build/
 .DS_Store
 *.log
+*.tsbuildinfo
+
+# Secrets & local env — never commit real keys (rotate any key that was ever committed)
 .env
 .env.*
-dist/
-build/
-*.tsbuildinfo
+!.env.example
+*.pem
+*.key
+*.p12
+secrets/
+credentials.json
+*-credentials.json
+
+# Tooling / OS
+.idea/
+.vscode/*
+!.vscode/extensions.json
+.turbo/
+coverage/
+*.local
+
+# Internal drafts & planning (product notes — keep local only)
+plannew.md
