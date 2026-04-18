@@ -86,7 +86,7 @@ Studio needs the API. The web app proxies `/api` to the API in dev (see `apps/we
 
 ## Web UI & branding
 
-- **Landing** — **Centered logo** at the top (large transparent PNG + tagline), then **Studio** / **Start building** in a row below inside the same sticky header. **Hero is headline-first** (no second hero logo).
+- **Landing** — **Centered icon-only mark** at the top (sticky header); primary CTAs stay in the **hero** below.
 - **Wizard & Studio** — Header **lockup**: logo + title + short subtitle (`BrandLogo` in `apps/web/src/BrandLogo.tsx`).
 - **Logo asset pipeline** — Place your source raster at the repo root as **`logo.png`**, then:
 

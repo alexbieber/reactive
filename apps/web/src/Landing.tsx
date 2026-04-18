@@ -17,17 +17,6 @@ export default function Landing({ onStartWizard, onStartStudio, onLoadDemo }: Pr
       <header className="landing-header">
         <div className="landing-logo-center landing-inner landing-inner--wide">
           <BrandLogo variant="landing" />
-          <p className="landing-logo-tagline">App Spec → Expo · React Native</p>
-        </div>
-        <div className="landing-nav-toolbar landing-inner landing-inner--wide">
-          <nav className="landing-nav-actions" aria-label="Primary actions">
-            <button type="button" className="btn ghost landing-nav-btn" onClick={() => onStartStudio()}>
-              Studio
-            </button>
-            <button type="button" className="btn primary landing-nav-btn" onClick={onStartWizard}>
-              Start building
-            </button>
-          </nav>
         </div>
       </header>
 
