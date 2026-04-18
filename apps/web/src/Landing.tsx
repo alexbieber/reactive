@@ -39,6 +39,13 @@ export default function Landing({ onStartWizard, onLoadDemo }: Props) {
         <p className="landing-hint">
           For the full loop (download ZIP), run <code className="inline-code">npm run dev:platform</code> locally.
         </p>
+        <aside className="landing-callout" role="note">
+          <strong>What you actually get:</strong> REACTIVE <strong>writes real code</strong> — TypeScript + Expo Router
+          screens, theme, <code className="inline-code">generatedSpec.ts</code> — inside the ZIP from the Review step
+          (or via CLI). There is <strong>no live phone preview inside this website</strong>; after unzip, run{" "}
+          <code className="inline-code">npx expo start</code> and scan the QR code with <strong>Expo Go</strong> on your
+          phone (same idea as Fastshot’s device preview, but on your machine).
+        </aside>
       </header>
 
       <section className="landing-section">

@@ -179,8 +179,10 @@ export default function App() {
         </button>
       </div>
       <p className="tagline">
-        Guided App Spec → frozen JSON → Expo project. Run <code className="inline-code">npm run dev:platform</code> for
-        the API, then download a ready-to-run ZIP from the Review step.
+        Guided App Spec → frozen JSON → <strong>generated TypeScript/Expo project</strong> (ZIP or CLI). Run{" "}
+        <code className="inline-code">npm run dev:platform</code> for the API, then use <strong>Download Expo project
+        (ZIP)</strong> on Review. Preview on a device with Expo Go after <code className="inline-code">npx expo start</code>
+        .
       </p>
 
       <div className="step-indicator">
@@ -402,6 +404,13 @@ export default function App() {
       {step === 9 && (
         <div className="panel">
           <h2>Review</h2>
+          <div className="review-callout">
+            <strong>Code is generated when you download the ZIP</strong> (or run the CLI below) — not in a chat panel.
+            The ZIP is a full Expo project: <code className="inline-code">app/(tabs)/…</code> screens,{" "}
+            <code className="inline-code">constants/Colors.ts</code>, <code className="inline-code">generatedSpec.ts</code>
+            , etc. <strong>Preview:</strong> unzip → <code className="inline-code">npx expo start</code> → open in{" "}
+            <strong>Expo Go</strong> (no in-browser simulator here).
+          </div>
           {!v.ok && (
             <div className="error-banner" style={{ marginBottom: "0.75rem" }}>
               {v.message}
@@ -410,7 +419,7 @@ export default function App() {
           {v.ok && <p style={{ color: "var(--muted)", marginTop: 0 }}>Spec validates against the JSON Schema.</p>}
           <div className="json-preview">{JSON.stringify(spec, null, 2)}</div>
           <small className="hint" style={{ marginTop: "0.75rem" }}>
-            CLI alternative:{" "}
+            CLI (same output as ZIP):{" "}
             <code className="inline-code">
               npm run codegen -- path/to/{spec.meta.slug}.spec.json ./out/MyApp
             </code>
