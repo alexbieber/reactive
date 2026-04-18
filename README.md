@@ -4,6 +4,8 @@ Guided **App Spec** → **Expo (React Native)** project: wizard UI, JSON Schema 
 
 **YC / pitch:** problem/solution, demo script, and application draft → [docs/YC_APPLICATION.md](docs/YC_APPLICATION.md)
 
+**End-to-end user flow** (landing → wizard → ZIP): [docs/USER_FLOW.md](docs/USER_FLOW.md)
+
 Docs: [PLAN.md](PLAN.md) · [docs/EXECUTION_PHASES.md](docs/EXECUTION_PHASES.md)
 
 ## Full platform (browser → ZIP)

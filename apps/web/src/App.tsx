@@ -102,7 +102,11 @@ export default function App() {
         body: JSON.stringify(finalSpec),
       });
       if (!response.ok) {
-        const errJson = await response.json().catch(() => ({}));
+        const errJson = (await response.json().catch(() => ({}))) as {
+          error?: string;
+          message?: string;
+          ok?: boolean;
+        };
         const msg =
           typeof errJson.error === "string"
             ? errJson.error
@@ -117,10 +121,17 @@ export default function App() {
       a.download = `${finalSpec.meta.slug}-expo.zip`;
       a.click();
       URL.revokeObjectURL(a.href);
-      setZipMessage("ZIP downloaded — unzip, then run: npm install && npx expo start");
+      setZipMessage(
+        "ZIP downloaded — unzip the folder, then run npx expo start (node_modules is already included)."
+      );
     } catch (e) {
       setZipMessage(null);
-      setValidationError(e instanceof Error ? e.message : String(e));
+      const raw = e instanceof Error ? e.message : String(e);
+      const hint =
+        /failed to fetch|networkerror|load failed/i.test(raw) || e instanceof TypeError
+          ? " Is the API running? In this repo run: npm run dev:platform (or npm run dev -w api on port 8787)."
+          : "";
+      setValidationError(raw + hint);
     } finally {
       setZipLoading(false);
     }
