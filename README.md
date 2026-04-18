@@ -2,6 +2,8 @@
 
 Guided **App Spec** → **Expo (React Native)** project: wizard UI, JSON Schema validation, deterministic codegen, optional AI copy polish, ZIP download via API, Docker, CI.
 
+**YC / pitch:** problem/solution, demo script, and application draft → [docs/YC_APPLICATION.md](docs/YC_APPLICATION.md)
+
 Docs: [PLAN.md](PLAN.md) · [docs/EXECUTION_PHASES.md](docs/EXECUTION_PHASES.md)
 
 ## Full platform (browser → ZIP)

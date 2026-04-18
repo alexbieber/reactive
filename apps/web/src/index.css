@@ -44,6 +44,165 @@ textarea {
   padding: 2rem 1.25rem 4rem;
 }
 
+.app-shell--wide {
+  max-width: 920px;
+}
+
+.brand-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.btn.link-back {
+  background: transparent;
+  border: 1px solid var(--border);
+  font-weight: 500;
+  font-size: 0.85rem;
+  padding: 0.4rem 0.75rem;
+}
+
+/* YC / founder landing */
+.landing-hero {
+  margin-bottom: 2.5rem;
+}
+
+.landing-eyebrow {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+  margin: 0 0 0.5rem;
+}
+
+.landing h1 {
+  font-size: clamp(1.75rem, 4vw, 2.35rem);
+  letter-spacing: -0.03em;
+  margin: 0 0 1rem;
+  line-height: 1.15;
+}
+
+.landing-lead {
+  font-size: 1.05rem;
+  line-height: 1.55;
+  color: var(--muted);
+  margin: 0 0 1.5rem;
+  max-width: 52ch;
+}
+
+.landing-cta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-bottom: 0.75rem;
+}
+
+.landing-cta-main {
+  font-size: 1rem;
+  padding: 0.65rem 1.15rem;
+}
+
+.landing-hint {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin: 0;
+}
+
+.landing-section {
+  margin-bottom: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.landing-section h2 {
+  font-size: 1.15rem;
+  margin: 0 0 0.75rem;
+}
+
+.landing-section h3 {
+  font-size: 0.95rem;
+  margin: 0 0 0.5rem;
+  color: var(--muted);
+}
+
+.landing-section p {
+  margin: 0;
+  line-height: 1.6;
+  color: var(--muted);
+  max-width: 65ch;
+}
+
+.landing-list {
+  margin: 0;
+  padding-left: 1.2rem;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.landing-list li {
+  margin-bottom: 0.5rem;
+}
+
+.landing-compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+@media (max-width: 720px) {
+  .landing-compare {
+    grid-template-columns: 1fr;
+  }
+}
+
+.landing-compare-col {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.1rem;
+  background: #0a0a0f;
+}
+
+.landing-compare-us {
+  border-color: rgba(129, 140, 248, 0.45);
+  background: rgba(129, 140, 248, 0.06);
+}
+
+.landing-compare-col ul {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 0.88rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.landing-compare-col li {
+  margin-bottom: 0.35rem;
+}
+
+.landing-yC {
+  border-left: 3px solid var(--accent);
+  padding-left: 1rem;
+  border-top: none;
+  padding-top: 0;
+}
+
+.landing-footer {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+  margin-top: 2.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.landing-github {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
 .brand {
   display: flex;
   align-items: baseline;

@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createDefaultSpec, slugify } from "./defaultSpec";
+import Landing from "./Landing";
 import type { AppSpec, Archetype, Block } from "./types";
 import { stampTimes, validateSpec } from "./validateSpec";
 
@@ -37,9 +38,23 @@ const BLOCKS: Block[] = [
 
 const apiBase = import.meta.env.VITE_API_BASE ?? "";
 
+function initialView(): "landing" | "wizard" {
+  if (typeof window === "undefined") return "landing";
+  const q = new URLSearchParams(window.location.search);
+  if (q.get("wizard") === "1" || q.get("build") === "1") return "wizard";
+  return "landing";
+}
+
 export default function App() {
+  const [view, setView] = useState<"landing" | "wizard">(initialView);
   const [step, setStep] = useState(0);
   const [spec, setSpec] = useState<AppSpec>(() => createDefaultSpec());
+
+  useEffect(() => {
+    const onPop = () => setView(initialView());
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [zipLoading, setZipLoading] = useState(false);
   const [zipMessage, setZipMessage] = useState<string | null>(null);
@@ -111,11 +126,46 @@ export default function App() {
     }
   }
 
+  if (view === "landing") {
+    return (
+      <div className="app-shell app-shell--wide">
+        <Landing
+          onStartWizard={() => {
+            setSpec(createDefaultSpec());
+            setStep(0);
+            setView("wizard");
+            setValidationError(null);
+            window.history.pushState({}, "", "?wizard=1");
+          }}
+          onLoadDemo={(loaded, opts) => {
+            setSpec(loaded);
+            setStep(opts.jumpToReview ? 9 : 0);
+            setView("wizard");
+            setValidationError(null);
+            window.history.pushState({}, "", "?wizard=1");
+          }}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="app-shell">
-      <div className="brand">
-        <h1>REACTIVE</h1>
-        <span>beta</span>
+      <div className="brand brand-row">
+        <div>
+          <h1>REACTIVE</h1>
+          <span>beta</span>
+        </div>
+        <button
+          type="button"
+          className="btn link-back"
+          onClick={() => {
+            setView("landing");
+            window.history.pushState({}, "", "/");
+          }}
+        >
+          ← Product story
+        </button>
       </div>
       <p className="tagline">
         Guided App Spec → frozen JSON → Expo project. Run <code className="inline-code">npm run dev:platform</code> for

@@ -15,6 +15,8 @@
 
 **Tagline options (for later):** *“Specify once. Ship React Native.”* / *“Your app, specified before it’s coded.”*
 
+**Fundraising:** founder narrative + YC-style draft answers and demo script live in [`docs/YC_APPLICATION.md`](docs/YC_APPLICATION.md); the web app opens on a **Product story** landing before the wizard.
+
 ---
 
 ## 2. Competitive synthesis — what to steal
