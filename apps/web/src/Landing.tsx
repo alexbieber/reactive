@@ -1,3 +1,4 @@
+import BrandMark from "./BrandMark";
 import type { AppSpec } from "./types";
 import { DEMO_SPECS } from "./demoSpecs";
 
@@ -14,6 +15,10 @@ export default function Landing({ onStartWizard, onStartStudio, onLoadDemo }: Pr
       <div className="landing-grid-bg" aria-hidden />
 
       <div className="landing-inner landing-inner--wide">
+        <header className="landing-brand">
+          <BrandMark size={44} className="landing-brand-mark" />
+        </header>
+
         <section className="hero-ai" aria-labelledby="hero-heading">
           <div className="hero-ai-badge">
             <span className="hero-ai-badge-dot" aria-hidden />

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import BrandMark from "./BrandMark";
 import { createDefaultSpec, slugify } from "./defaultSpec";
 import Landing from "./Landing";
 import Studio from "./Studio";
@@ -187,9 +188,7 @@ export default function App() {
   return (
     <div className="app-shell">
       <div className="brand brand-row">
-        <div>
-          <h1>REACTIVE</h1>
-        </div>
+        <BrandMark />
         <button
           type="button"
           className="btn link-back"

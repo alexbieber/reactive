@@ -517,6 +517,51 @@ button.btn.hero-ai-btn-secondary:focus-visible {
   margin-bottom: 0.25rem;
 }
 
+.brand-mark {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.brand-logo {
+  display: block;
+  flex-shrink: 0;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+.brand-wordmark {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--text);
+  line-height: 1.1;
+}
+
+.brand-wordmark--studio {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.08rem;
+}
+
+.brand-product {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.brand-screen {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--text);
+}
+
 .brand h1 {
   margin: 0;
   font-size: 1.5rem;
@@ -530,6 +575,19 @@ button.btn.hero-ai-btn-secondary:focus-visible {
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.12em;
+}
+
+.landing-brand {
+  margin-bottom: 1.75rem;
+}
+
+.landing-brand-mark .brand-logo {
+  width: 44px;
+  height: 44px;
+}
+
+.landing-brand-mark .brand-wordmark {
+  font-size: 1.65rem;
 }
 
 .tagline {
