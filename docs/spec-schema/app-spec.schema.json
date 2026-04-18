@@ -1,0 +1,192 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://reactive.dev/schemas/app-spec.json",
+  "title": "REACTIVE App Spec",
+  "description": "Canonical contract produced by the intake wizard and consumed by codegen. Version with the spec, not only this file.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["meta", "audience", "journeys", "navigation", "screens", "data_model", "auth", "backend", "integrations", "design", "non_goals"],
+  "properties": {
+    "meta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "slug", "archetype", "spec_version"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "description": "Human-readable app name" },
+        "slug": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "description": "URL/package safe identifier"
+        },
+        "archetype": {
+          "type": "string",
+          "enum": ["content", "utility", "social-lite", "marketplace-lite", "other"]
+        },
+        "spec_version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$", "description": "Semver for this document" },
+        "created_at": { "type": "string", "format": "date-time" },
+        "updated_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "audience": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["summary", "primary_persona"],
+      "properties": {
+        "summary": { "type": "string", "minLength": 1 },
+        "primary_persona": { "type": "string", "minLength": 1 }
+      }
+    },
+    "journeys": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "name", "steps"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+          "name": { "type": "string", "minLength": 1 },
+          "steps": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    },
+    "navigation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "initial_route", "routes"],
+      "properties": {
+        "type": { "type": "string", "enum": ["tabs", "stack", "tabs-stack"] },
+        "initial_route": { "type": "string", "minLength": 1 },
+        "routes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "path", "title"],
+            "properties": {
+              "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+              "path": { "type": "string", "minLength": 1 },
+              "title": { "type": "string", "minLength": 1 },
+              "icon": { "type": "string", "description": "Optional tab icon name (template-specific)" }
+            }
+          }
+        }
+      }
+    },
+    "screens": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "title", "purpose", "blocks"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+          "title": { "type": "string", "minLength": 1 },
+          "purpose": { "type": "string", "minLength": 1 },
+          "route_id": { "type": "string", "description": "Links screen to navigation.routes[].id when applicable" },
+          "blocks": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["list", "detail", "form", "settings", "chart", "hero", "empty-state", "custom"]
+            }
+          }
+        }
+      }
+    },
+    "data_model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["entities"],
+      "properties": {
+        "entities": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "fields"],
+            "properties": {
+              "name": { "type": "string", "minLength": 1 },
+              "description": { "type": "string" },
+              "fields": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["name", "type"],
+                  "properties": {
+                    "name": { "type": "string", "minLength": 1 },
+                    "type": {
+                      "type": "string",
+                      "enum": ["string", "number", "boolean", "date", "json"]
+                    },
+                    "required": { "type": "boolean" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "auth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode"],
+      "properties": {
+        "mode": { "type": "string", "enum": ["none", "email", "social", "email-social"] },
+        "notes": { "type": "string" }
+      }
+    },
+    "backend": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode"],
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["none", "rest", "supabase-ready", "firebase-ready"]
+        },
+        "base_url_placeholder": { "type": "string", "description": "e.g. EXPO_PUBLIC_API_URL" },
+        "notes": { "type": "string" }
+      }
+    },
+    "integrations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["push", "maps", "camera", "payments"],
+      "properties": {
+        "push": { "type": "boolean" },
+        "maps": { "type": "boolean" },
+        "camera": { "type": "boolean" },
+        "payments": { "type": "boolean" }
+      }
+    },
+    "design": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primary_color", "color_mode", "density"],
+      "properties": {
+        "primary_color": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+        "color_mode": { "type": "string", "enum": ["light", "dark", "system"] },
+        "density": { "type": "string", "enum": ["compact", "comfortable", "spacious"] },
+        "adjectives": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "e.g. calm, playful, premium"
+        }
+      }
+    },
+    "non_goals": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Explicitly excluded from v1; codegen must not implement these"
+    }
+  }
+}

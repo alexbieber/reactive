@@ -1,0 +1,120 @@
+{
+  "meta": {
+    "name": "Kitchen Compass",
+    "slug": "kitchen-compass",
+    "archetype": "content",
+    "spec_version": "1.0.0",
+    "created_at": "2026-04-18T12:00:00.000Z",
+    "updated_at": "2026-04-18T12:00:00.000Z"
+  },
+  "audience": {
+    "summary": "Home cooks who save and browse recipes, filter by time and diet, and open a cooking view with steps.",
+    "primary_persona": "Adult cooking 3–4 times a week who wants recipes organized on their phone."
+  },
+  "journeys": [
+    {
+      "id": "browse_and_open",
+      "name": "Browse and open recipe",
+      "steps": [
+        "Land on recipe list with search",
+        "Tap a recipe card to open detail",
+        "Switch to cooking mode for step-by-step"
+      ]
+    },
+    {
+      "id": "save_recipe",
+      "name": "Save a new recipe",
+      "steps": [
+        "Open Save tab",
+        "Fill title, ingredients, steps in a form",
+        "Submit and see it appear in list"
+      ]
+    }
+  ],
+  "navigation": {
+    "type": "tabs",
+    "initial_route": "recipes",
+    "routes": [
+      { "id": "recipes", "path": "/recipes", "title": "Recipes", "icon": "book" },
+      { "id": "save", "path": "/save", "title": "Save", "icon": "add" },
+      { "id": "settings", "path": "/settings", "title": "Settings", "icon": "settings" }
+    ]
+  },
+  "screens": [
+    {
+      "id": "screen_recipe_list",
+      "title": "Recipes",
+      "purpose": "Searchable list of recipe cards with time and tags.",
+      "route_id": "recipes",
+      "blocks": ["list", "hero"]
+    },
+    {
+      "id": "screen_recipe_detail",
+      "title": "Recipe",
+      "purpose": "Ingredients, steps, and button to cooking mode.",
+      "blocks": ["detail", "hero"]
+    },
+    {
+      "id": "screen_cooking",
+      "title": "Cooking",
+      "purpose": "One step at a time with next/prev.",
+      "blocks": ["custom"]
+    },
+    {
+      "id": "screen_save",
+      "title": "Save recipe",
+      "purpose": "Form to add a recipe (local only).",
+      "route_id": "save",
+      "blocks": ["form"]
+    },
+    {
+      "id": "screen_settings",
+      "title": "Settings",
+      "purpose": "Dietary prefs placeholder, export placeholder.",
+      "route_id": "settings",
+      "blocks": ["settings"]
+    }
+  ],
+  "data_model": {
+    "entities": [
+      {
+        "name": "Recipe",
+        "description": "A recipe the user saved or seeded.",
+        "fields": [
+          { "name": "id", "type": "string", "required": true },
+          { "name": "title", "type": "string", "required": true },
+          { "name": "minutes", "type": "number", "required": false },
+          { "name": "ingredients", "type": "json", "required": true },
+          { "name": "steps", "type": "json", "required": true },
+          { "name": "tags", "type": "json", "required": false }
+        ]
+      }
+    ]
+  },
+  "auth": {
+    "mode": "none",
+    "notes": "MVP: offline-first; optional account later."
+  },
+  "backend": {
+    "mode": "none",
+    "notes": "Seed JSON or local storage; optional REST in later spec."
+  },
+  "integrations": {
+    "push": false,
+    "maps": false,
+    "camera": false,
+    "payments": false
+  },
+  "design": {
+    "primary_color": "#0D9488",
+    "color_mode": "light",
+    "density": "spacious",
+    "adjectives": ["warm", "appetizing", "readable"]
+  },
+  "non_goals": [
+    "Meal planning calendar across weeks",
+    "Grocery delivery integrations",
+    "Video streaming in-app",
+    "Nutrition API with barcode scan"
+  ]
+}

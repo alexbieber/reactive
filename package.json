@@ -1,0 +1,20 @@
+{
+  "name": "reactive",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "validate:spec": "node scripts/validate-spec.mjs",
+    "validate:spec:examples": "node scripts/validate-spec.mjs docs/spec-schema/examples/habit-tracker.spec.json && node scripts/validate-spec.mjs docs/spec-schema/examples/recipe-browser.spec.json",
+    "dev": "npm run dev -w web",
+    "build": "npm run build -w web",
+    "codegen": "node scripts/codegen.mjs",
+    "check:artifact": "node scripts/check-artifact.mjs"
+  },
+  "devDependencies": {
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1"
+  }
+}

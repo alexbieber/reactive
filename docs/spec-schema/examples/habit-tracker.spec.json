@@ -1,0 +1,123 @@
+{
+  "meta": {
+    "name": "Habitly",
+    "slug": "habitly",
+    "archetype": "utility",
+    "spec_version": "1.0.0",
+    "created_at": "2026-04-18T12:00:00.000Z",
+    "updated_at": "2026-04-18T12:00:00.000Z"
+  },
+  "audience": {
+    "summary": "People who want a lightweight daily habit tracker with streaks and simple stats, without social noise.",
+    "primary_persona": "Busy professional building 2–5 habits who checks the app once or twice a day."
+  },
+  "journeys": [
+    {
+      "id": "first_run",
+      "name": "First launch",
+      "steps": [
+        "See empty habits list with short explainer",
+        "Tap add habit, enter name and optional reminder time",
+        "Mark today complete on the home list"
+      ]
+    },
+    {
+      "id": "daily_checkin",
+      "name": "Daily check-in",
+      "steps": [
+        "Open app to Today tab",
+        "Toggle completion for each habit",
+        "View streak count update on list row"
+      ]
+    }
+  ],
+  "navigation": {
+    "type": "tabs",
+    "initial_route": "today",
+    "routes": [
+      { "id": "today", "path": "/today", "title": "Today", "icon": "calendar" },
+      { "id": "habits", "path": "/habits", "title": "Habits", "icon": "list" },
+      { "id": "stats", "path": "/stats", "title": "Stats", "icon": "chart" },
+      { "id": "settings", "path": "/settings", "title": "Settings", "icon": "settings" }
+    ]
+  },
+  "screens": [
+    {
+      "id": "screen_today",
+      "title": "Today",
+      "purpose": "Show today's habits with quick complete toggles.",
+      "route_id": "today",
+      "blocks": ["list", "empty-state"]
+    },
+    {
+      "id": "screen_habits",
+      "title": "All habits",
+      "purpose": "Browse, add, and edit habits.",
+      "route_id": "habits",
+      "blocks": ["list", "form"]
+    },
+    {
+      "id": "screen_stats",
+      "title": "Stats",
+      "purpose": "Simple weekly completion chart.",
+      "route_id": "stats",
+      "blocks": ["chart"]
+    },
+    {
+      "id": "screen_settings",
+      "title": "Settings",
+      "purpose": "Theme, reminders placeholder, export placeholder.",
+      "route_id": "settings",
+      "blocks": ["settings"]
+    }
+  ],
+  "data_model": {
+    "entities": [
+      {
+        "name": "Habit",
+        "description": "A recurring action the user tracks.",
+        "fields": [
+          { "name": "id", "type": "string", "required": true },
+          { "name": "title", "type": "string", "required": true },
+          { "name": "createdAt", "type": "date", "required": true },
+          { "name": "reminderTime", "type": "string", "required": false }
+        ]
+      },
+      {
+        "name": "Completion",
+        "description": "One completion event for a habit on a calendar day.",
+        "fields": [
+          { "name": "habitId", "type": "string", "required": true },
+          { "name": "date", "type": "date", "required": true },
+          { "name": "done", "type": "boolean", "required": true }
+        ]
+      }
+    ]
+  },
+  "auth": {
+    "mode": "none",
+    "notes": "MVP: local-only data; optional auth in a later spec version."
+  },
+  "backend": {
+    "mode": "none",
+    "notes": "Persist with AsyncStorage or SQLite placeholder per template; no cloud sync in v1."
+  },
+  "integrations": {
+    "push": false,
+    "maps": false,
+    "camera": false,
+    "payments": false
+  },
+  "design": {
+    "primary_color": "#4F46E5",
+    "color_mode": "system",
+    "density": "comfortable",
+    "adjectives": ["calm", "minimal", "focused"]
+  },
+  "non_goals": [
+    "Social feeds or friend comparisons",
+    "Wearable integrations",
+    "Subscription billing",
+    "Cloud sync and multi-device"
+  ]
+}
