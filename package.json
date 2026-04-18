@@ -16,11 +16,13 @@
     "start": "node apps/api/src/server.mjs",
     "codegen": "node scripts/codegen.mjs",
     "check:artifact": "node scripts/check-artifact.mjs",
-    "enrich:spec": "node scripts/llm-enrich-spec.mjs"
+    "enrich:spec": "node scripts/llm-enrich-spec.mjs",
+    "process:logo": "node scripts/strip-logo-bg.mjs"
   },
   "devDependencies": {
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
-    "concurrently": "^9.1.2"
+    "concurrently": "^9.1.2",
+    "sharp": "^0.34.5"
   }
 }

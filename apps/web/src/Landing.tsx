@@ -1,4 +1,4 @@
-import BrandMark from "./BrandMark";
+import BrandLogo from "./BrandLogo";
 import type { AppSpec } from "./types";
 import { DEMO_SPECS } from "./demoSpecs";
 
@@ -14,12 +14,29 @@ export default function Landing({ onStartWizard, onStartStudio, onLoadDemo }: Pr
       <div className="landing-mesh" aria-hidden />
       <div className="landing-grid-bg" aria-hidden />
 
-      <div className="landing-inner landing-inner--wide">
-        <header className="landing-brand">
-          <BrandMark size={44} className="landing-brand-mark" />
-        </header>
+      <header className="landing-nav">
+        <div className="landing-nav-inner landing-inner landing-inner--wide">
+          <div className="landing-nav-brand" aria-label="REACTIVE — App Spec to Expo">
+            <BrandLogo variant="nav" />
+            <div className="landing-nav-text">
+              <span className="landing-nav-title">REACTIVE</span>
+              <span className="landing-nav-sub">App Spec → Expo · React Native</span>
+            </div>
+          </div>
+          <nav className="landing-nav-actions" aria-label="Primary actions">
+            <button type="button" className="btn ghost landing-nav-btn" onClick={() => onStartStudio()}>
+              Studio
+            </button>
+            <button type="button" className="btn primary landing-nav-btn" onClick={onStartWizard}>
+              Start building
+            </button>
+          </nav>
+        </div>
+      </header>
 
+      <div className="landing-inner landing-inner--wide">
         <section className="hero-ai" aria-labelledby="hero-heading">
+          <BrandLogo variant="hero" />
           <div className="hero-ai-badge">
             <span className="hero-ai-badge-dot" aria-hidden />
             Spec-locked · Expo · BYOK

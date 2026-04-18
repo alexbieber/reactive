@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import BrandMark from "./BrandMark";
+import BrandLogo from "./BrandLogo";
 import { createDefaultSpec, slugify } from "./defaultSpec";
 import Landing from "./Landing";
 import Studio from "./Studio";
@@ -187,8 +187,14 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      <div className="brand brand-row">
-        <BrandMark />
+      <div className="brand brand-row brand-row--logo">
+        <div className="brand-lockup">
+          <BrandLogo variant="wizard" />
+          <div className="brand-lockup-text">
+            <h1>REACTIVE</h1>
+            <span className="brand-lockup-sub">App Spec wizard</span>
+          </div>
+        </div>
         <button
           type="button"
           className="btn link-back"

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import BrandMark from "./BrandMark";
+import BrandLogo from "./BrandLogo";
 import type { AppSpec } from "./types";
 import { isLocalhostHost, previewAbsoluteUrl } from "./previewAbsoluteUrl";
 import { parseAgentMessage, STUDIO_AGENTS } from "./studioAgents";
@@ -670,8 +670,14 @@ export default function Studio({ initialSpec, onBack }: Props) {
 
   return (
     <div className="app-shell studio-shell">
-      <div className="brand brand-row">
-        <BrandMark variant="studio" />
+      <div className="brand brand-row brand-row--logo">
+        <div className="brand-lockup">
+          <BrandLogo variant="studio" />
+          <div className="brand-lockup-text">
+            <h1>Studio</h1>
+            <span className="brand-lockup-sub">Copilot · preview</span>
+          </div>
+        </div>
         <button type="button" className="btn link-back" onClick={onBack}>
           ← Home
         </button>
