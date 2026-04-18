@@ -1,5 +1,6 @@
 /**
- * Product mark — uses processed PNG (transparent bg) from /reactive-logo.png.
+ * Icon-only mark — processed PNG (transparent bg), no wordmark.
+ * Regenerate: npm run process:logo
  */
 type BrandLogoProps = {
   /** landing: centered hero mark · nav: compact · studio / wizard: app chrome */
@@ -7,7 +8,7 @@ type BrandLogoProps = {
   className?: string;
 };
 
-const SRC = "/reactive-logo.png";
+const SRC = "/reactive-mark.png";
 
 export default function BrandLogo({ variant, className = "" }: BrandLogoProps) {
   const base = `brand-logo brand-logo--${variant}`.trim();

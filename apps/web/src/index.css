@@ -200,10 +200,10 @@ textarea {
 
 .brand-logo--landing .brand-logo-img--landing {
   display: block;
-  width: min(92vw, 320px);
+  width: min(92vw, 360px);
   height: auto;
-  min-height: 72px;
-  max-height: 140px;
+  min-height: 56px;
+  max-height: 120px;
   margin: 0 auto;
   object-fit: contain;
   filter: drop-shadow(0 10px 36px rgba(0, 0, 0, 0.55));

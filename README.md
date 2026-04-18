@@ -37,7 +37,7 @@ REACTIVE is a **spec-first** product: you (or the AI copilot) produce a canonica
 | **GitHub context** | Optional: load public repo metadata (README, `package.json`, Expo config, tsconfig, EAS, Babel/Metro) into the copilot—**hints only**; codegen stays template-locked. |
 | **Token estimates** | Per-request **input/output** token counts (gpt-tokenizer / GPT-4o-style) on chat and preview responses; session totals in the UI. |
 | **Quality gates** | Spec validation, optional artifact checks, CI (build web, validate examples, codegen smoke). |
-| **Branding** | Landing nav + headline-first hero; wizard/Studio logo lockups; `logo.png` → `npm run process:logo` → transparent PNG + favicons in `apps/web/public/`. |
+| **Branding** | Landing + wizard/Studio use **icon-only** `reactive-mark.png` (wordmark text removed); `logo.png` → `npm run process:logo` → mark + full PNG + favicons. |
 
 ---
 
@@ -98,10 +98,13 @@ This runs `scripts/strip-logo-bg.mjs` (**sharp**): removes a near-white backgrou
 
 | Output | Purpose |
 |--------|---------|
-| `apps/web/public/reactive-logo.png` | UI (transparent PNG) |
-| `apps/web/public/favicon-32.png` | Small PNG favicon |
+| `apps/web/public/reactive-mark.png` | **UI icon** (top slice of the artwork — no wordmark; used in app) |
+| `apps/web/public/reactive-logo.png` | Full raster after background removal (archive / print) |
+| `apps/web/public/favicon-32.png` | Small PNG favicon (from **mark**) |
 | `apps/web/public/apple-touch-icon.png` | iOS home-screen icon |
-| `apps/web/public/favicon.svg` | Vector tab icon (custom mark; edit separately if needed) |
+| `apps/web/public/favicon.svg` | Vector tab icon (edit separately if needed) |
+
+Slice height for the mark: set **`LOGO_MARK_RATIO`** (e.g. `0.45`–`0.55`, default `0.48`) when running the script if the crop needs tuning.
 
 Commit updated files under `apps/web/public/` after regenerating.
 
