@@ -179,7 +179,7 @@ textarea {
   position: sticky;
   top: 0;
   z-index: 50;
-  margin: -2rem -1.25rem 1.25rem;
+  margin: -2rem -1.25rem 2rem;
   padding: 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(8, 8, 12, 0.88);
@@ -190,7 +190,7 @@ textarea {
 
 .landing-logo-center {
   text-align: center;
-  padding: 1rem 1.25rem 0.85rem;
+  padding: 1rem 1.25rem 1rem;
 }
 
 .landing-logo-center .brand-logo--landing {
@@ -272,9 +272,9 @@ textarea {
   padding: 1.5rem 0 0.5rem;
 }
 
-/* Headline-led hero (logo only in nav — no duplicate mark) */
+/* Headline-led hero — extra air below sticky logo / above badge */
 .hero-ai--headline-first {
-  padding-top: 0.35rem;
+  padding-top: 1.75rem;
 }
 
 .hero-ai-badge {
