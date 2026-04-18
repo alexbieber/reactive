@@ -174,66 +174,66 @@ textarea {
   max-width: 920px;
 }
 
-/* Landing — top bar (product mark) */
-.landing-nav {
+/* Landing — centered logo + sticky header */
+.landing-header {
   position: sticky;
   top: 0;
   z-index: 50;
   margin: -2rem -1.25rem 1.25rem;
-  padding: 0.65rem 1.25rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(10, 10, 14, 0.72);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  padding: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(8, 8, 12, 0.88);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
 }
 
-.landing-nav-inner {
+.landing-logo-center {
+  text-align: center;
+  padding: 1.1rem 1.25rem 0.35rem;
+}
+
+.landing-logo-center .brand-logo--landing {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  flex-wrap: wrap;
+  justify-content: center;
 }
 
-.landing-nav-brand {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  min-width: 0;
+.brand-logo--landing .brand-logo-img--landing {
+  display: block;
+  width: min(92vw, 320px);
+  height: auto;
+  min-height: 72px;
+  max-height: 140px;
+  margin: 0 auto;
+  object-fit: contain;
+  filter: drop-shadow(0 10px 36px rgba(0, 0, 0, 0.55));
 }
 
-.landing-nav-text {
-  display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
-  min-width: 0;
-}
-
-.landing-nav-title {
-  font-size: 1.05rem;
-  font-weight: 700;
-  letter-spacing: -0.04em;
-  color: var(--text);
-  line-height: 1.15;
-}
-
-.landing-nav-sub {
-  font-size: 0.68rem;
+.landing-logo-tagline {
+  margin: 0.4rem 0 0;
+  font-size: 0.74rem;
   font-weight: 500;
   color: var(--muted);
-  letter-spacing: 0.02em;
+  letter-spacing: 0.04em;
+}
+
+.landing-nav-toolbar {
+  display: flex;
+  justify-content: center;
+  padding: 0.35rem 1.25rem 0.85rem;
 }
 
 .landing-nav-actions {
   display: flex;
   align-items: center;
-  gap: 0.45rem;
+  justify-content: center;
+  gap: 0.5rem;
   flex-wrap: wrap;
 }
 
 button.landing-nav-btn {
   font-size: 0.8rem;
-  padding: 0.42rem 0.95rem;
+  padding: 0.45rem 1rem;
 }
 
 /* Brand logo asset (transparent PNG) */

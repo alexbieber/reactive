@@ -12,14 +12,15 @@ REACTIVE is a **spec-first** product: you (or the AI copilot) produce a canonica
 2. [Why it's powerful](#why-its-powerful)
 3. [Architecture at a glance](#architecture-at-a-glance)
 4. [Quick start](#quick-start)
-5. [Studio (copilot + preview)](#studio-copilot--preview)
-6. [HTTP API](#http-api)
-7. [Environment variables](#environment-variables)
-8. [Production & Docker](#production--docker)
-9. [CLI & scripts](#cli--scripts)
-10. [Documentation](#documentation)
-11. [Limits & honesty](#limits--honesty)
-12. [License](#license)
+5. [Web UI & branding](#web-ui--branding)
+6. [Studio (copilot + preview)](#studio-copilot--preview)
+7. [HTTP API](#http-api)
+8. [Environment variables](#environment-variables)
+9. [Production & Docker](#production--docker)
+10. [CLI & scripts](#cli--scripts)
+11. [Documentation](#documentation)
+12. [Limits & honesty](#limits--honesty)
+13. [License](#license)
 
 ---
 
@@ -36,6 +37,7 @@ REACTIVE is a **spec-first** product: you (or the AI copilot) produce a canonica
 | **GitHub context** | Optional: load public repo metadata (README, `package.json`, Expo config, tsconfig, EAS, Babel/Metro) into the copilot—**hints only**; codegen stays template-locked. |
 | **Token estimates** | Per-request **input/output** token counts (gpt-tokenizer / GPT-4o-style) on chat and preview responses; session totals in the UI. |
 | **Quality gates** | Spec validation, optional artifact checks, CI (build web, validate examples, codegen smoke). |
+| **Branding** | Landing nav + headline-first hero; wizard/Studio logo lockups; `logo.png` → `npm run process:logo` → transparent PNG + favicons in `apps/web/public/`. |
 
 ---
 
@@ -79,6 +81,29 @@ npm run dev:platform
 Studio needs the API. The web app proxies `/api` to the API in dev (see `apps/web` Vite config).
 
 **Phones and preview:** Devices cannot open `localhost`. Use your machine’s **LAN IP** in the browser, or set **`VITE_PUBLIC_PREVIEW_ORIGIN`** for deployed builds so QR codes and links point at a reachable host.
+
+---
+
+## Web UI & branding
+
+- **Landing** — **Centered logo** at the top (large transparent PNG + tagline), then **Studio** / **Start building** in a row below inside the same sticky header. **Hero is headline-first** (no second hero logo).
+- **Wizard & Studio** — Header **lockup**: logo + title + short subtitle (`BrandLogo` in `apps/web/src/BrandLogo.tsx`).
+- **Logo asset pipeline** — Place your source raster at the repo root as **`logo.png`**, then:
+
+```bash
+npm run process:logo
+```
+
+This runs `scripts/strip-logo-bg.mjs` (**sharp**): removes a near-white background and writes:
+
+| Output | Purpose |
+|--------|---------|
+| `apps/web/public/reactive-logo.png` | UI (transparent PNG) |
+| `apps/web/public/favicon-32.png` | Small PNG favicon |
+| `apps/web/public/apple-touch-icon.png` | iOS home-screen icon |
+| `apps/web/public/favicon.svg` | Vector tab icon (custom mark; edit separately if needed) |
+
+Commit updated files under `apps/web/public/` after regenerating.
 
 ---
 
@@ -159,6 +184,12 @@ npm run check:artifact -- ./out/MyApp
 
 ```bash
 npm run enrich:spec -- docs/spec-schema/examples/habit-tracker.spec.json
+```
+
+**Regenerate web logos & favicons** from root `logo.png`:
+
+```bash
+npm run process:logo
 ```
 
 ---

@@ -14,15 +14,12 @@ export default function Landing({ onStartWizard, onStartStudio, onLoadDemo }: Pr
       <div className="landing-mesh" aria-hidden />
       <div className="landing-grid-bg" aria-hidden />
 
-      <header className="landing-nav">
-        <div className="landing-nav-inner landing-inner landing-inner--wide">
-          <div className="landing-nav-brand" aria-label="REACTIVE — App Spec to Expo">
-            <BrandLogo variant="nav" />
-            <div className="landing-nav-text">
-              <span className="landing-nav-title">REACTIVE</span>
-              <span className="landing-nav-sub">App Spec → Expo · React Native</span>
-            </div>
-          </div>
+      <header className="landing-header">
+        <div className="landing-logo-center landing-inner landing-inner--wide">
+          <BrandLogo variant="landing" />
+          <p className="landing-logo-tagline">App Spec → Expo · React Native</p>
+        </div>
+        <div className="landing-nav-toolbar landing-inner landing-inner--wide">
           <nav className="landing-nav-actions" aria-label="Primary actions">
             <button type="button" className="btn ghost landing-nav-btn" onClick={() => onStartStudio()}>
               Studio
