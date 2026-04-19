@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import BrandLogo from "./BrandLogo";
 import { createDefaultSpec, slugify } from "./defaultSpec";
 import Landing from "./Landing";
 import Studio from "./Studio";
-import TeamRoom from "./TeamRoom";
 import BuilderFlow from "./builder/BuilderFlow";
+
+const TeamRoom = lazy(() => import("./TeamRoom"));
 import { useBuilderStore } from "./builder/builderStore";
 import type { AppSpec, Archetype, Block } from "./types";
 import { stampTimes, validateSpec } from "./validateSpec";
@@ -189,18 +190,26 @@ export default function App() {
 
   if (view === "teamroom") {
     return (
-      <TeamRoom
-        onBack={() => {
-          setView("landing");
-          window.history.pushState({}, "", "/");
-        }}
-        onOpenStudio={() => {
-          setStudioInitialSpec(createDefaultSpec());
-          setStudioKey((k) => k + 1);
-          setView("studio");
-          window.history.pushState({}, "", "?studio=1");
-        }}
-      />
+      <Suspense
+        fallback={
+          <div className="app-shell" role="status">
+            <p className="tagline">Loading Team Space…</p>
+          </div>
+        }
+      >
+        <TeamRoom
+          onBack={() => {
+            setView("landing");
+            window.history.pushState({}, "", "/");
+          }}
+          onOpenStudio={() => {
+            setStudioInitialSpec(createDefaultSpec());
+            setStudioKey((k) => k + 1);
+            setView("studio");
+            window.history.pushState({}, "", "?studio=1");
+          }}
+        />
+      </Suspense>
     );
   }
 

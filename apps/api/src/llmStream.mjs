@@ -43,24 +43,83 @@ function extractGeminiResponseText(j) {
   return out;
 }
 
+/**
+ * Model id for generativelanguage.googleapis.com (no `models/` prefix in URL path).
+ * @param {string} [model]
+ */
+function normalizeGeminiModelId(model) {
+  let m = String(model ?? "").trim();
+  if (m.startsWith("models/")) m = m.slice("models/".length);
+  m = m.replace(/\s+/g, "-").toLowerCase();
+  if (!m) m = DEFAULT_MODELS.google;
+  return m;
+}
+
+/**
+ * Gemini requires `contents` to strictly alternate `user` and `model`. Merge consecutive
+ * same-role turns (e.g. duplicate facilitator lines). Preserve alternation for empty strings.
+ * @param {{ role: string, content: string }[]} messages
+ */
+function buildGeminiContents(messages) {
+  const out = [];
+  for (const m of messages) {
+    const role = m.role === "assistant" ? "model" : "user";
+    let text = String(m.content ?? "");
+    if (!text.trim()) text = " ";
+    const last = out[out.length - 1];
+    if (last && last.role === role) {
+      last.parts[0].text += "\n\n" + text;
+    } else {
+      out.push({ role, parts: [{ text }] });
+    }
+  }
+  return out;
+}
+
 /** OpenAI-style delta.content may be string or an array of { type, text } chunks (some providers) */
 function* yieldOpenAiDeltaContent(delta) {
-  const c = delta?.content;
+  if (!delta) return;
+  const c = delta.content;
   if (typeof c === "string" && c.length) {
     yield c;
     return;
   }
-  if (!Array.isArray(c)) return;
-  for (const item of c) {
-    if (item?.type === "text" && typeof item.text === "string" && item.text.length) yield item.text;
-    else if (typeof item === "string" && item.length) yield item;
+  if (Array.isArray(c)) {
+    for (const item of c) {
+      if (item?.type === "text" && typeof item.text === "string" && item.text.length) yield item.text;
+      else if (typeof item === "string" && item.length) yield item;
+    }
+    return;
   }
+  /* OpenAI-compatible proxies / NIM / Groq variants: plain text on delta */
+  if (typeof delta.text === "string" && delta.text.length) yield delta.text;
+  /* Some reasoning models stream assistant text here */
+  if (typeof delta.reasoning_content === "string" && delta.reasoning_content.length) yield delta.reasoning_content;
+}
+
+/**
+ * Provider-specific output caps — Groq/Mistral/NVIDIA often 400 if max_tokens is too high for the model tier.
+ * @param {string} provider
+ * @param {number} [requested]
+ */
+function capMaxTokensForProvider(provider, requested) {
+  const r = Math.max(256, requested ?? 8192);
+  const caps = {
+    openai: 16384,
+    anthropic: 8192,
+    google: 8192,
+    groq: 8192,
+    mistral: 8192,
+    nvidia: 16384,
+  };
+  const cap = caps[provider] ?? 8192;
+  return Math.min(r, cap);
 }
 
 const MAX_KEY_LEN = 4096;
 
 /** Strip zero-width / BOM characters often copied from PDFs or chat UIs */
-function sanitizeApiKeyInput(s) {
+export function sanitizeApiKeyInput(s) {
   if (typeof s !== "string") return "";
   return s.replace(/[\u200B-\u200D\uFEFF]/g, "").trim();
 }
@@ -217,9 +276,19 @@ export async function* streamOpenAICompatible({
 }
 
 /**
- * @param {{ apiKey: string, model: string, system: string, messages: {role: string, content: string}[], signal?: AbortSignal, temperature?: number }} opts
+ * @param {{ apiKey: string, model: string, system: string, messages: {role: string, content: string}[], signal?: AbortSignal, temperature?: number, max_tokens?: number }} opts
  */
-export async function* streamAnthropicChat({ apiKey, model, system, messages, signal, temperature = 0.35 }) {
+export async function* streamAnthropicChat({
+  apiKey,
+  model,
+  system,
+  messages,
+  signal,
+  temperature = 0.35,
+  max_tokens: maxTokensOpt,
+}) {
+  /* Claude 3.x chat output cap is 8192 on most models; honor caller up to that */
+  const max_tokens = Math.min(Math.max(256, maxTokensOpt ?? 8192), 8192);
   const r = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -230,7 +299,7 @@ export async function* streamAnthropicChat({ apiKey, model, system, messages, si
     },
     body: JSON.stringify({
       model,
-      max_tokens: 8192,
+      max_tokens,
       stream: true,
       system,
       messages: messages.map((m) => ({ role: m.role, content: m.content })),
@@ -264,8 +333,10 @@ export async function* streamAnthropicChat({ apiKey, model, system, messages, si
       if (!dataLine) continue;
       try {
         const j = JSON.parse(dataLine);
-        if (j.type === "content_block_delta" && j.delta?.type === "text_delta" && j.delta.text) {
-          yield j.delta.text;
+        /* Claude Messages streaming: text_delta, or any content_block_delta with .text */
+        if (j.type === "content_block_delta" && j.delta) {
+          const t = j.delta.text;
+          if (typeof t === "string" && t.length) yield t;
         }
       } catch (_) {
         /* ignore */
@@ -286,14 +357,12 @@ export async function* streamGeminiChat({
   temperature = 0.35,
   maxOutputTokens = 8192,
 }) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:streamGenerateContent?alt=sse`;
+  const modelId = normalizeGeminiModelId(model);
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modelId)}:streamGenerateContent?alt=sse`;
 
-  const contents = [];
-  for (const m of messages) {
-    contents.push({
-      role: m.role === "assistant" ? "model" : "user",
-      parts: [{ text: m.content }],
-    });
+  const contents = buildGeminiContents(messages);
+  if (contents.length === 0) {
+    throw new Error("Gemini: empty conversation — add a topic or message.");
   }
 
   const outCap = Math.min(Math.max(256, maxOutputTokens), 8192);
@@ -339,7 +408,17 @@ export async function* streamGeminiChat({
       if (!data || data === "[DONE]") continue;
       try {
         const parsed = JSON.parse(data);
+        if (parsed?.error) {
+          const err = parsed.error;
+          const msg = typeof err.message === "string" ? err.message : JSON.stringify(err);
+          throw new Error(`Gemini API: ${msg}`);
+        }
         const j = Array.isArray(parsed) ? parsed[0] : parsed;
+        if (j?.error) {
+          const err = j.error;
+          const msg = typeof err.message === "string" ? err.message : JSON.stringify(err);
+          throw new Error(`Gemini API: ${msg}`);
+        }
         if (j?.promptFeedback?.blockReason) {
           throw new Error(`Gemini blocked the prompt: ${j.promptFeedback.blockReason}`);
         }
@@ -350,7 +429,7 @@ export async function* streamGeminiChat({
         const text = extractGeminiResponseText(j);
         if (text.length) yield text;
       } catch (e) {
-        if (e instanceof Error && e.message.startsWith("Gemini")) throw e;
+        if (e instanceof Error && (e.message.startsWith("Gemini") || e.message.startsWith("Gemini API:"))) throw e;
         /* malformed chunk — skip */
       }
     }
@@ -363,11 +442,11 @@ export async function* streamGeminiChat({
 export async function* streamLlmChat(opts) {
   const { provider, apiKey, model, system, messages, signal } = opts;
   const temperature = opts.temperature ?? 0.35;
-  const max_tokens = opts.max_tokens ?? 8192;
+  const max_tokens = capMaxTokensForProvider(provider, opts.max_tokens ?? 8192);
   const openaiMsgs = [{ role: "system", content: system }, ...messages];
 
   if (provider === "anthropic") {
-    yield* streamAnthropicChat({ apiKey, model, system, messages, signal, temperature });
+    yield* streamAnthropicChat({ apiKey, model, system, messages, signal, temperature, max_tokens });
     return;
   }
 
@@ -449,13 +528,11 @@ async function completeAnthropic({ apiKey, model, system, messages }) {
 }
 
 async function completeGemini({ apiKey, model, system, messages }) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
-  const contents = [];
-  for (const m of messages) {
-    contents.push({
-      role: m.role === "assistant" ? "model" : "user",
-      parts: [{ text: m.content }],
-    });
+  const modelId = normalizeGeminiModelId(model);
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modelId)}:generateContent`;
+  const contents = buildGeminiContents(messages);
+  if (contents.length === 0) {
+    throw new Error("Gemini: empty conversation — add messages.");
   }
   const body = { contents, generationConfig: { temperature: 0.35 } };
   if (system) {

@@ -38,44 +38,49 @@ export const GENERATION_PROMPT = `You are a senior React Native (Expo) developer
   [full file contents]
   ===END===
 
-**Stack:** TypeScript, Expo Router, \`expo-router\`, \`expo-status-bar\`, functional components. Use \`StyleSheet.create\` plus a small **design token** layer (see \`constants/theme.ts\`). Prefer \`SafeAreaView\` from \`react-native-safe-area-context\` at root layouts if you add that dependency in \`package.json\`. No bare \`any\`; export types where useful.
+**Stack:** TypeScript, Expo Router, \`expo-router\`, \`expo-status-bar\`, functional components. Use \`StyleSheet.create\` plus a small **design token** layer (see \`constants/theme.ts\`). Prefer \`SafeAreaView\` from \`react-native-safe-area-context\` at root layouts if you add that dependency in \`package.json\`. Use \`tsconfig\` path alias \`"@/*": ["./*"]\` and imports like \`@/components/...\` when helpful. No bare \`any\`; export types where useful.
 
-**You MUST generate a full project**, not a demo snippet. Include **all applicable** files below (skip only what truly does not apply, but err on the side of including):
+**You MUST generate a full project**, not a demo snippet. Aim for **at least ~22–30+ project files** (configs + app + components + constants + assets placeholders) so the ZIP feels like a real repo.
 
-**Root & tooling**
-- \`package.json\` — scripts: \`start\`, \`android\`, \`ios\`, \`web\`; dependencies for Expo SDK compatible with Expo Router; \`devDependencies\`: typescript, @types/react
-- \`app.json\` — expo name, slug, scheme, userInterfaceStyle, plugins if needed
-- \`tsconfig.json\` — strict-friendly paths
-- \`babel.config.js\` — \`babel-preset-expo\`
-- \`metro.config.js\` — default \`expo/metro-config\` re-export if needed
-- \`.gitignore\` — node_modules, .expo, dist, etc.
-- \`README.md\` — how to \`npm install\`, \`npx expo start\`, and run iOS/Android/web
+**Mandatory file manifest (include every item below — do not skip “optional-looking” configs):**
 
-**App entry (Expo Router)**
-- \`app/_layout.tsx\` — root Stack or Slot; StatusBar; theme provider if you add one
-- \`app/index.tsx\` — entry redirect or landing
-- \`app/(tabs)/_layout.tsx\` — Tabs with icons/titles
-- At least **2–3 tab screens**, e.g. \`app/(tabs)/index.tsx\`, \`app/(tabs)/two.tsx\`, \`app/(tabs)/settings.tsx\` (names fit the product)
-- Optional: \`app/+not-found.tsx\`, \`app/modal.tsx\` if you use a modal route
+**Root entry (Expo Router — not a classic single-file App)**
+- \`App.js\` — **required:** exactly one line: \`import 'expo-router/entry';\` (some tools and Snack still resolve \`App.js\`; real entry remains \`package.json\` \`main\`)
+- \`package.json\` — **required:** \`"main": "expo-router/entry"\`; scripts \`start\`, \`android\`, \`ios\`, \`web\`; **Expo SDK 54** — \`expo\` \`~54.0.0\`, matching \`react\`, \`react-native\`, \`expo-router\`, \`react-native-safe-area-context\`, \`react-native-screens\`, \`@expo/vector-icons\` as needed; \`devDependencies\`: \`typescript\`, \`@types/react\`
+- \`app.json\` — \`expo.sdkVersion\` **~\`54.0.0\`**; \`name\`, \`slug\`, \`scheme\`, \`userInterfaceStyle\`; \`plugins\`: \`["expo-router"]\` only — **never** \`expo-router/expo-router-app-plugin\`
+- \`tsconfig.json\` — \`extends\`: \`expo/tsconfig.base\`; \`compilerOptions.strict\`: true; \`paths\`: \`"@/*": ["./*"]\`; \`include\` lists \`**/*.ts\`, \`**/*.tsx\`, \`expo-env.d.ts\`
+- \`expo-env.d.ts\` — \`/// <reference types="expo-router/types" />\` (and keep compatible with Expo TS)
+- \`babel.config.js\` — \`presets: ['babel-preset-expo']\` only; **no** \`expo-router/babel\` plugin
+- \`metro.config.js\` — \`const { getDefaultConfig } = require('expo/metro-config'); module.exports = getDefaultConfig(__dirname);\` (or ESM equivalent)
+- \`.gitignore\` — \`node_modules\`, \`.expo\`, \`dist\`, OS junk, env files
+- \`README.md\` — install, \`npx expo start\`, iOS/Android/web
 
-**Shared code**
-- \`constants/theme.ts\` — colors, spacing, typography tokens
-- \`constants/Colors.ts\` optional if you split
-- \`components/ui/\` — reusable \`Button\`, \`Screen\`, \`ThemedText\` (or similar)
-- \`components/\` — feature components used by screens
-- \`hooks/useColorScheme.ts\` or \`useTheme.ts\` if you branch light/dark
+**App routes (Expo Router)**
+- \`app/_layout.tsx\` — root \`Stack\` or \`Slot\`; \`StatusBar\`; fonts/splash only if you reference assets
+- \`app/index.tsx\` — landing or redirect into \`(tabs)\`
+- \`app/(tabs)/_layout.tsx\` — \`Tabs\` with titles/icons
+- **≥3** screens under \`app/(tabs)/\` with **domain-specific** filenames (e.g. \`app/(tabs)/index.tsx\`, \`app/(tabs)/explore.tsx\`, \`app/(tabs)/settings.tsx\`) — not generic \`screen1\`
+- \`app/+not-found.tsx\` — simple “not found” UI using \`expo-router\`’s \`Link\` back home
+- Optional but encouraged: \`app/modal.tsx\` and/or \`app/+html.tsx\` (web shell) if you use those patterns
+
+**Shared code & UI**
+- \`constants/theme.ts\` — spacing, radii, typography, semantic colors
+- \`constants/Colors.ts\` — light/dark palette (or merge into theme if you prefer one file)
+- \`components/ui/\` — at least **two** of: \`Button.tsx\`, \`ThemedText.tsx\`, \`Screen.tsx\` (or equivalent)
+- \`components/\` — at least **one** feature component used by a tab screen
+- \`hooks/useColorScheme.ts\` **or** \`lib/useTheme.ts\` if you branch light/dark
 - \`types/index.ts\` — shared domain types
 
-**Assets (reference only)**
-- \`assets/images/.gitkeep\` or a one-line comment file so the folder exists; use \`require()\` or placeholder URIs where images are needed
+**Assets**
+- \`assets/images/.gitkeep\` **or** a tiny \`README.md\` in \`assets/images/\` so the folder exists; reference images with \`require()\` only if you add real files, else use placeholders/icons from \`@expo/vector-icons\`
 
 **Quality bar**
 - **No TODO / FIXME placeholders** — every file must compile as a coherent app
+- **Do not omit** items from the mandatory manifest above (configs, \`App.js\`, \`+not-found\`, multiple tab screens, components, assets folder)
 - Wired navigation between tabs/screens; realistic empty states and loading affordances where data is shown
-- Keep file count high enough that unzipping feels like a **real repo**, not a single-file hack
 - **README.md** must include: (1) one-line product summary tied to the user’s idea, (2) **“Requirements addressed”** — bullet list mapping each major user answer to what you built, (3) \`npx expo start\` then scan QR for **iOS/Android (Expo Go)** and press \`w\` for web preview
 
-If you run out of tokens, prioritize **config + app router tree + theme + shared components + README** over novelty features.`;
+If you run out of tokens, prioritize **every mandatory file + working navigation** over extra features; never drop \`babel.config.js\`, \`metro.config.js\`, \`expo-env.d.ts\`, \`App.js\`, or \`+not-found\`.`;
 
 /** @param {string} raw */
 export function parseQuestionsJson(raw) {

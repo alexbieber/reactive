@@ -14,6 +14,19 @@ export function parseGeneratedFiles(raw: string): GeneratedFile[] {
       language: languageFromPath(path),
     });
   }
+  if (files.length > 0) return files;
+  /* Some models add spaces: === FILE: path === */
+  const reLoose = /===\s*FILE\s*:\s*(.+?)===\r?\n([\s\S]*?)===\s*END\s*===/gi;
+  while ((match = reLoose.exec(raw)) !== null) {
+    const path = match[1].trim();
+    const content = match[2].trim();
+    if (!path) continue;
+    files.push({
+      path,
+      content,
+      language: languageFromPath(path),
+    });
+  }
   return files;
 }
 

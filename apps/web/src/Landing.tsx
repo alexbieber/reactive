@@ -62,7 +62,7 @@ export default function Landing({ onStartWizard, onStartStudio, onLoadDemo, onPr
               Open Studio
             </button>
             <button type="button" className="btn hero-ai-btn-secondary" onClick={onTeamRoom}>
-              Team conference room
+              Team Space
             </button>
           </div>
 
@@ -75,7 +75,7 @@ export default function Landing({ onStartWizard, onStartStudio, onLoadDemo, onPr
             <li>Wizard</li>
             <li>Project build (full Expo tree)</li>
             <li>Studio</li>
-            <li>Conference room</li>
+            <li>Team Space (host + join)</li>
             <li>ZIP export</li>
           </ul>
         </section>

@@ -3,21 +3,14 @@
  */
 
 import archiver from "archiver";
-import { randomBytes } from "crypto";
 import cors from "cors";
 import express from "express";
 import fs from "fs";
-import os from "os";
 import path from "path";
 import { fileURLToPath } from "url";
 import { buildCopilotSystem } from "./copilotPrompt.mjs";
 import { buildProjectBuildCopilotSystem } from "./projectBuildCopilotPrompt.mjs";
-import {
-  materializeProject,
-  runExpoWebExport,
-  previewEntryHtml,
-  rewritePreviewPaths,
-} from "./buildProject.mjs";
+import { materializeProject, readProjectSourceFilesForSnack } from "./buildProject.mjs";
 import { completeLlmChat, resolveLlmFromRequest, streamLlmChat } from "./llmStream.mjs";
 import { normalizeAppSpecForSchema } from "./normalizeAppSpec.mjs";
 import { validateSpecObject } from "./specValidate.mjs";
@@ -32,13 +25,14 @@ import {
   GENERATION_PROMPT,
   parseQuestionsJson,
 } from "./rnBuilderPrompts.mjs";
-import { buildTeamRoomSystem } from "./teamRoomPrompt.mjs";
+import { buildTeamRoomSystem, extractTeamSpaceTopic } from "./teamRoomPrompt.mjs";
+import { resolveOpenAiKeyForTts, synthesizeOpenAiSpeech } from "./openaiTts.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, "..", "..", "..");
 
 /** Must match GET /api/health — bump when routes or capabilities change */
-const API_VERSION = "1.4.0";
+const API_VERSION = "2.0.0";
 
 const app = express();
 
@@ -66,22 +60,8 @@ const corsOrigins = (process.env.CORS_ORIGIN ?? "")
   .map((s) => s.trim())
   .filter(Boolean);
 app.use(cors(corsOrigins.length > 0 ? { origin: corsOrigins, credentials: false } : undefined));
+
 app.use(express.json({ limit: "6mb" }));
-
-/** @type {Map<string, { tmp: string, created: number }>} */
-const previewSessions = new Map();
-
-setInterval(() => {
-  const now = Date.now();
-  for (const [id, s] of previewSessions) {
-    if (now - s.created > 60 * 60 * 1000) {
-      try {
-        fs.rmSync(s.tmp, { recursive: true, force: true });
-      } catch (_) {}
-      previewSessions.delete(id);
-    }
-  }
-}, 5 * 60 * 1000);
 
 app.get("/api/health", (_req, res) => {
   res.json({
@@ -103,12 +83,48 @@ app.get("/api/health", (_req, res) => {
       githubRepoContext: true,
       /** POST /api/team-room/stream — multi-agent conference (no App Spec) */
       teamRoomStream: true,
+      /** POST /api/team-room/complete — same body as stream, one JSON response (IDE preview / no SSE) */
+      teamRoomOneShot: true,
+      /** POST /api/tts/openai — OpenAI neural speech (MP3); key from BYOK OpenAI or openaiTtsApiKey or server env */
+      openaiNeuralTts: true,
       tokenEstimates: true,
       /** plannew-style: prompt → JSON questions → stream ===FILE=== project */
       rnQuickBuilder: true,
+      /** Web preview uses Expo Snack in the browser; Studio calls POST /api/preview-build for source files */
+      snackWebPreview: true,
     },
   });
 });
+
+/**
+ * OpenAI neural TTS (MP3) — proxied; quality comparable to consumer “AI voice” products (billed by OpenAI).
+ */
+app.post(
+  "/api/tts/openai",
+  asyncRoute(async (req, res) => {
+    const resolved = resolveOpenAiKeyForTts(req, process.env);
+    if (!resolved.ok) {
+      return res.status(501).json({ ok: false, error: resolved.error });
+    }
+    const text = typeof req.body?.text === "string" ? req.body.text : "";
+    const voiceRaw = typeof req.body?.voice === "string" ? req.body.voice.trim().toLowerCase() : "alloy";
+    const model = req.body?.model === "tts-1-hd" ? "tts-1-hd" : "tts-1";
+    try {
+      const buf = await synthesizeOpenAiSpeech({
+        apiKey: resolved.apiKey,
+        text,
+        voice: voiceRaw,
+        model,
+      });
+      res.setHeader("Content-Type", "audio/mpeg");
+      res.setHeader("Cache-Control", "no-store");
+      return res.send(buf);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      return res.status(502).json({ ok: false, error: msg.slice(0, 500) });
+    }
+  })
+);
 
 /** Load README, package.json, Expo config, tsconfig, eas.json — optional monorepo appPath. */
 app.post("/api/github/context", async (req, res) => {
@@ -182,10 +198,20 @@ function getSafeChatMessages(body) {
   return safe.length ? safe : null;
 }
 
+/** Synthetic “chair muted” line — only used when body.autonomousRound is true */
+const TEAM_ROOM_HOST_MUTE =
+  "(Host is muted — teammates only: continue the space among yourselves. React to what was just said; do not wait for the chair.)";
+
 /** Team conference room: use messages[] or a single facilitator message from topic */
 function getTeamRoomMessages(body) {
+  const autonomousRound = Boolean(body?.autonomousRound);
   const fromChat = getSafeChatMessages(body);
-  if (fromChat) return fromChat;
+  if (fromChat) {
+    if (autonomousRound) {
+      return [...fromChat, { role: "user", content: TEAM_ROOM_HOST_MUTE }];
+    }
+    return fromChat;
+  }
   const topic = typeof body?.topic === "string" ? body.topic.trim() : "";
   const content =
     topic.slice(0, 12000) ||
@@ -253,7 +279,7 @@ app.post("/api/generate", async (req, res) => {
 });
 
 /**
- * Build project + expo export --platform web → session id for iframe
+ * Codegen App Spec → source file list for Expo Snack (web embeds Snack; no server-side export).
  */
 app.post("/api/preview-build", async (req, res) => {
   const spec = req.body;
@@ -271,30 +297,12 @@ app.post("/api/preview-build", async (req, res) => {
   try {
     const { tmp: t, outDir } = materializeProject(normalized);
     tmp = t;
-    await runExpoWebExport(outDir);
-
-    const webDist = path.join(outDir, "dist");
-    if (!fs.existsSync(webDist)) {
-      fs.rmSync(tmp, { recursive: true, force: true });
-      return res.status(500).json({ error: "expo export did not produce dist/" });
-    }
-
-    const id = randomBytes(16).toString("base64url");
-    const previewBase = `/api/preview-frame/${id}`;
-    rewritePreviewPaths(webDist, previewBase);
-    previewSessions.set(id, { tmp, created: Date.now() });
-
-    const entry = previewEntryHtml(normalized);
-    const entryPath = path.join(webDist, entry);
-    const fallback = fs.existsSync(entryPath) ? entry : fs.readdirSync(webDist).find((f) => f.endsWith(".html") && !f.startsWith("+")) || "today.html";
-
+    const files = readProjectSourceFilesForSnack(outDir);
     const specTu = computeSpecJsonTokenUsage(normalized);
     res.json({
       ok: true,
-      previewId: id,
-      /** path under /api/preview-frame/:id/ */
-      entry: fallback,
-      message: "Open preview iframe (Expo web export — same UI code as native, web renderer).",
+      files,
+      message: "Load these files into Expo Snack in the Studio web preview.",
       tokenUsage: {
         phase: "preview-build",
         llmTokens: 0,
@@ -303,11 +311,10 @@ app.post("/api/preview-build", async (req, res) => {
     });
   } catch (e) {
     console.error(e);
-    if (tmp) fs.rmSync(tmp, { recursive: true, force: true });
     if (!res.headersSent) {
       const msg = String(e.message || e);
       const isCodegen =
-        /codegen|navigation\.type|tabs|validation failed|npm install|expo export/i.test(msg);
+        /codegen|navigation\.type|tabs|validation failed|npm install|too large|No source files/i.test(msg);
       res.status(isCodegen ? 422 : 500).json({
         ok: false,
         error: msg,
@@ -316,33 +323,13 @@ app.post("/api/preview-build", async (req, res) => {
           : undefined,
       });
     }
+  } finally {
+    if (tmp) {
+      try {
+        fs.rmSync(tmp, { recursive: true, force: true });
+      } catch (_) {}
+    }
   }
-});
-
-app.use("/api/preview-frame/:id", (req, res, next) => {
-  const { id } = req.params;
-  const session = previewSessions.get(id);
-  if (!session) {
-    return res.status(404).send("Preview expired or not found. Rebuild from Studio.");
-  }
-  const webDist = path.join(session.tmp, "out", "dist");
-  if (!fs.existsSync(webDist)) {
-    return res.status(404).send("dist missing");
-  }
-  const prefix = `/api/preview-frame/${id}`;
-  const pathname = req.originalUrl.split("?")[0];
-  let rel = pathname.startsWith(prefix) ? pathname.slice(prefix.length) : "/";
-  if (!rel || rel === "/") rel = "/index.html";
-  const savedUrl = req.url;
-  req.url = rel;
-  res.on("finish", () => {
-    req.url = savedUrl;
-  });
-  express.static(webDist, { fallthrough: true })(req, res, (err) => {
-    req.url = savedUrl;
-    if (err) return next(err);
-    next();
-  });
 });
 
 app.post(
@@ -501,7 +488,7 @@ app.get("/api/team-room", (_req, res) => {
   res.json({
     ok: true,
     post: "/api/team-room/stream",
-    hint: "GET is a capability check. Start a meeting with POST + JSON body { topic } or { messages[] }.",
+    hint: "POST /api/team-room/stream (SSE) or /api/team-room/complete (JSON) — same body; use complete when SSE is blocked.",
   });
 });
 
@@ -520,9 +507,12 @@ app.post(
     }
 
     const safeMessages = getTeamRoomMessages(req.body);
+    const spaceTopic = extractTeamSpaceTopic(safeMessages);
 
     const continuation = safeMessages.some((m) => m.role === "assistant");
-    const system = buildTeamRoomSystem({ continuation });
+    const autonomousRound = Boolean(req.body?.autonomousRound);
+    const singleTurn = Boolean(req.body?.teamRoomSingleTurn);
+    const system = buildTeamRoomSystem({ continuation, autonomousRound, singleTurn, spaceTopic });
 
     res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
     res.setHeader("Cache-Control", "no-cache, no-transform");
@@ -591,6 +581,59 @@ app.post(
 );
 
 /**
+ * Team Space — same prompts as /api/team-room/stream but one JSON body (no SSE).
+ * Use when embedded browsers abort EventSource/fetch streams (e.g. Cursor Simple Browser).
+ */
+app.post(
+  "/api/team-room/complete",
+  asyncRoute(async (req, res) => {
+    const resolved = resolveLlmFromRequest(req, process.env);
+    if (!resolved.ok) {
+      return res.status(501).json({
+        error: resolved.error,
+        hint: "Add OPENAI_API_KEY or NVIDIA_API_KEY on the API, or paste your key under Model API key in Team Space.",
+      });
+    }
+
+    const safeMessages = getTeamRoomMessages(req.body);
+    const spaceTopic = extractTeamSpaceTopic(safeMessages);
+    const continuation = safeMessages.some((m) => m.role === "assistant");
+    const autonomousRound = Boolean(req.body?.autonomousRound);
+    const singleTurn = Boolean(req.body?.teamRoomSingleTurn);
+    const system = buildTeamRoomSystem({ continuation, autonomousRound, singleTurn, spaceTopic });
+
+    try {
+      const text = await completeLlmChat({
+        provider: resolved.provider,
+        apiKey: resolved.apiKey,
+        model: resolved.model,
+        system,
+        messages: safeMessages,
+      });
+      if (!String(text).trim()) {
+        return res.status(502).json({
+          error:
+            "Model returned no text — check API key, model id, and provider status; try a shorter topic if filters block.",
+        });
+      }
+      const tokenUsage = computeChatTokenUsage({
+        provider: resolved.provider,
+        model: resolved.model,
+        system,
+        messages: safeMessages,
+        completionText: text,
+      });
+      return res.json({ ok: true, fullText: text, tokenUsage });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      return res.status(502).json({
+        error: process.env.NODE_ENV === "production" ? "Team Space model request failed" : msg.slice(0, 500),
+      });
+    }
+  })
+);
+
+/**
  * Project RN builder (plannew flow): clarifying questions as JSON — same BYOK / multi-provider as Studio.
  */
 app.post("/api/builder/clarify", async (req, res) => {
@@ -642,7 +685,9 @@ app.post("/api/builder/clarify", async (req, res) => {
 /**
  * Stream full ===FILE=== project text (plannew-style). Long timeout for large generations.
  */
-app.post("/api/builder/generate-stream", async (req, res) => {
+app.post(
+  "/api/builder/generate-stream",
+  asyncRoute(async (req, res) => {
   const resolved = resolveLlmFromRequest(req, process.env);
   if (!resolved.ok) {
     return res.status(501).json({
@@ -663,9 +708,9 @@ app.post("/api/builder/generate-stream", async (req, res) => {
     const lines = [];
     for (const q of questions) {
       if (!q || typeof q !== "object") continue;
-      const id = q.id;
+      const id = Number(q.id);
       const qtext = typeof q.question === "string" ? q.question.trim() : "";
-      const a = answers.find((x) => x && x.questionId === id);
+      const a = answers.find((x) => x && Number(x.questionId) === id);
       const aval = a && typeof a.value === "string" ? a.value.trim() : String(a?.value ?? "").trim();
       lines.push(`Q: ${qtext || `(question ${id})`}`);
       lines.push(`A: ${aval || "(empty)"}`);
@@ -692,11 +737,8 @@ Generate the **complete** React Native (Expo) project per the system prompt. The
   if (typeof res.flushHeaders === "function") res.flushHeaders();
 
   const ac = new AbortController();
-  const t = setTimeout(() => ac.abort(), 300000);
-  req.on("close", () => {
-    clearTimeout(t);
-    ac.abort();
-  });
+  /** Long codegen — 10m. Only the timer aborts upstream fetch. Do NOT tie AbortController to req "aborted"/"close": those fire spuriously (proxies, body lifecycle) and cancel the LLM stream with AbortError. */
+  const t = setTimeout(() => ac.abort(), 600000);
 
   const writeSse = (obj) => {
     res.write(`data: ${JSON.stringify(obj)}\n\n`);
@@ -728,13 +770,23 @@ Generate the **complete** React Native (Expo) project per the system prompt. The
   } catch (e) {
     clearTimeout(t);
     const msg = e instanceof Error ? e.message : String(e);
-    writeSse({
-      type: "error",
-      message: process.env.NODE_ENV === "production" ? "Generation failed" : msg.slice(0, 500),
-    });
-    res.end();
+    const aborted = e instanceof Error && (e.name === "AbortError" || /aborted/i.test(e.message));
+    try {
+      writeSse({
+        type: "error",
+        message: process.env.NODE_ENV === "production" && !aborted ? "Generation failed" : msg.slice(0, 500),
+      });
+    } catch (_) {
+      /* response may be closed */
+    }
+    try {
+      res.end();
+    } catch (_) {
+      /* ignore */
+    }
   }
-});
+  })
+);
 
 app.use((err, req, res, _next) => {
   console.error("[api]", err);

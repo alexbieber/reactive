@@ -34,13 +34,18 @@ export const useBuilderStore = create<BuilderStore>((set) => ({
   setStep: (step) => set({ step }),
   setQuestions: (questions) =>
     set({
-      questions,
+      questions: questions.map((q, i) => ({
+        ...q,
+        /** Models sometimes emit string ids — breaks answer matching / "Generate" enablement */
+        id: typeof q.id === "number" && !Number.isNaN(q.id) ? q.id : Number(q.id) || i + 1,
+      })),
       answers: [],
     }),
   setAnswer: (questionId, value) =>
     set((s) => {
-      const rest = s.answers.filter((a) => a.questionId !== questionId);
-      return { answers: [...rest, { questionId, value }] };
+      const id = Number(questionId);
+      const rest = s.answers.filter((a) => Number(a.questionId) !== id);
+      return { answers: [...rest, { questionId: id, value }] };
     }),
   setFiles: (files) =>
     set({
@@ -62,7 +67,8 @@ export const useBuilderStore = create<BuilderStore>((set) => ({
 export function answersComplete(questions: BuilderQuestion[], answers: BuilderAnswer[]): boolean {
   if (!questions.length) return false;
   for (const q of questions) {
-    const a = answers.find((x) => x.questionId === q.id);
+    const qid = Number(q.id);
+    const a = answers.find((x) => Number(x.questionId) === qid);
     if (!a || !String(a.value).trim()) return false;
   }
   return true;

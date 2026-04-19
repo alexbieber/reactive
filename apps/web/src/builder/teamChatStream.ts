@@ -1,15 +1,29 @@
-/** SSE parser for POST /api/chat/stream — shared shape with Studio */
+/** SSE parser for POST /api/chat/stream and /api/team-room/stream — same event shape */
 
-function parseSseDataLine(rawBlock: string): {
+/** Payload after `data:` (handles `data:{"x":1}` and `data: {"x":1}` per SSE). */
+function lineAfterDataPrefix(line: string): string {
+  const i = line.indexOf(":");
+  return i >= 0 ? line.slice(i + 1).trimStart() : line;
+}
+
+/** Exported for POST /api/builder/generate-stream — same framing as chat SSE. */
+export function parseSseDataBlock(rawBlock: string): {
   type?: string;
   text?: string;
   fullText?: string;
   message?: string;
 } | null {
-  const line = rawBlock.split("\n").find((l) => l.startsWith("data: "));
-  if (!line) return null;
+  const lines = rawBlock.split("\n").filter((l) => l.length > 0);
+  const dataLines = lines.filter((l) => l.startsWith("data:"));
+  if (!dataLines.length) return null;
+  /* SSE: multiple `data:` lines are joined with \n */
+  const payload =
+    dataLines.length === 1
+      ? lineAfterDataPrefix(dataLines[0])
+      : dataLines.map(lineAfterDataPrefix).join("\n");
+  if (payload === "[DONE]") return null;
   try {
-    return JSON.parse(line.slice(6)) as {
+    return JSON.parse(payload) as {
       type?: string;
       text?: string;
       fullText?: string;
@@ -30,11 +44,16 @@ export async function parseTeamChatSSEStream(
   const dec = new TextDecoder();
   let buf = "";
   let sawDone = false;
+  /** Sum of delta.text — used if the connection closes before a `done` frame (proxies, IDE preview, tab background) */
+  let deltaAccum = "";
 
   const handleOneBlock = (raw: string) => {
-    const j = parseSseDataLine(raw);
+    const j = parseSseDataBlock(raw);
     if (!j) return;
-    if (j.type === "delta" && typeof j.text === "string") onDelta(j.text);
+    if (j.type === "delta" && typeof j.text === "string") {
+      deltaAccum += j.text;
+      onDelta(j.text);
+    }
     if (j.type === "done") {
       if (sawDone) return;
       sawDone = true;
@@ -69,8 +88,13 @@ export async function parseTeamChatSSEStream(
     }
   }
   if (!sawDone) {
+    const trimmed = deltaAccum.trim();
+    if (trimmed.length > 0) {
+      onDone({ fullText: deltaAccum });
+      return;
+    }
     throw new Error(
-      "Stream ended without a final done event. Check the API is running and /api/chat/stream is available."
+      "Stream ended without a final done event and no text. Open this app in Chrome/Safari/Edge (not the Cursor/VS Code embedded preview), run `npm run dev:platform` so the API is on port 8788, then retry."
     );
   }
 }

@@ -2,13 +2,12 @@ import { Fragment, useMemo, useState, type ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { AppSpec } from "../types";
+import { WEB_API_BASE } from "../apiBase";
 import { buildLlmRequestFields, loadStudioLlm } from "../studioLlm";
 import { getAgentEmployeeLine, parseAgentSegments } from "../studioAgents";
 import { getErrorMessageFromResponse } from "../apiFetchErrors";
 import type { GeneratedFile } from "./types";
 import { parseTeamChatSSEStream } from "./teamChatStream";
-
-const apiBase = import.meta.env.VITE_API_BASE ?? "";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
@@ -97,7 +96,7 @@ export default function BuilderTeamChat({ files, spec, onOpenStudio }: Props) {
     };
 
     try {
-      const r = await fetch(`${apiBase}/api/chat/stream`, {
+      const r = await fetch(`${WEB_API_BASE}/api/chat/stream`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),

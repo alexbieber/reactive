@@ -5,6 +5,7 @@
  */
 export function previewAbsoluteUrl(previewPath: string): string {
   if (/^https?:\/\//i.test(previewPath)) return previewPath;
+  if (/^(exp|exps):\/\//i.test(previewPath)) return previewPath;
   const origin = import.meta.env.VITE_PUBLIC_PREVIEW_ORIGIN as string | undefined;
   if (origin && /^https?:\/\//i.test(origin)) {
     const base = origin.replace(/\/$/, "");

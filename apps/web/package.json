@@ -13,11 +13,13 @@
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
     "jszip": "^3.10.1",
+    "kokoro-js": "^1.2.1",
     "qrcode": "^1.5.4",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
+    "snack-sdk": "^6.6.2",
     "zustand": "^5.0.12"
   },
   "devDependencies": {
